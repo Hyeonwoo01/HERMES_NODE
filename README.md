@@ -3,7 +3,7 @@ SYNAPSE-H 프로젝트
 
 **SYNAPSE-H — 응급 전원·병원 수용을 위한 사람 감독형 의사결정 지능 (Human-Supervised Decision Intelligence for Emergency Transfer and Hospital Acceptance)**
 
-사업제안서(IYEO 2026, University Division)의 MVP를 실행 가능한 웹 애플리케이션으로 구현했습니다.
+사업제안서의 MVP를 실행 가능한 웹 애플리케이션으로 구현했습니다.
 의뢰서를 구조화하고, 목적지 준비도를 예측하며, 불확실성 아래에서 임상적으로 적합한 병원을
 **설명 가능한 상위 3개 옵션**으로 제시합니다. **최종 결정은 항상 의료진이 내립니다.**
 
