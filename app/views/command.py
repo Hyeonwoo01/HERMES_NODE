@@ -4,7 +4,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from common import INK2, MUTED, SERIES, STATUS, esc, hour, plotly_layout, tile
+from common import (INK, INK2, LINK, MUTED, SIGNAL, SIGNAL_LIGHT, STATUS, esc, header, hour,
+                    plotly_layout, tile)
 from synapse_h.data import REGION_NAME
 from synapse_h.models import CAPABILITY_LABELS
 from synapse_h.optimizer import allocate
@@ -13,8 +14,7 @@ from synapse_h.readiness import STALE_THRESHOLD_MIN, UNVERIFIABLE_MIN, predict_r
 ss = st.session_state
 ss.setdefault("transfers", [])
 
-st.markdown(f'<div class="sh-bar"><b>SYNAPSE-H &nbsp;|&nbsp; REGIONAL COMMAND VIEW</b>'
-            f'<span>{esc(REGION_NAME.upper())} • {ss.clock:%H:%M}</span></div>', unsafe_allow_html=True)
+header("Regional Command · 지역 상황실", f"{REGION_NAME.split(' (')[0]} · {ss.clock:%H:%M}")
 
 net = ss.network
 plan = allocate(ss.concurrent, net, ss.origins, ss.weights, hour=hour())
@@ -25,18 +25,18 @@ active = len(ss.concurrent) + sum(t["status"] != "수용" for t in ss.transfers)
 fca = m["first_choice_accept"]
 med = m["median_confirmation_min"]
 cols = st.columns(4)
-cols[0].markdown(tile("Active cases", str(active), "동시 대기 + 진행 중 케이스", SERIES[0]), unsafe_allow_html=True)
+cols[0].markdown(tile("Active cases", str(active), "동시 대기 + 진행 중 케이스"), unsafe_allow_html=True)
 cols[1].markdown(tile("First-choice accept", f"{fca:.0%}" if fca is not None else "—",
-                      "오케스트레이터 연락 기록 기준", "#0f7f6e"), unsafe_allow_html=True)
+                      "오케스트레이터 연락 기록 기준"), unsafe_allow_html=True)
 cols[2].markdown(tile("Median confirmation", f"{med:.1f}m" if med is not None else "—",
-                      "첫 연락 3분 + 실패당 6분", "#0f7f6e"), unsafe_allow_html=True)
+                      "첫 연락 3분 + 실패당 6분"), unsafe_allow_html=True)
 cols[3].markdown(tile("Stale feeds", str(len(stale)), f"{STALE_THRESHOLD_MIN:.0f}분 신선도 임계값 초과",
-                      "#b4541a" if stale else "#0f7f6e"), unsafe_allow_html=True)
+                      SIGNAL if stale else INK), unsafe_allow_html=True)
 st.write("")
 
 left, right = st.columns([3, 2])
 with left:
-    st.markdown("**LIVE REGIONAL NETWORK**")
+    st.markdown('<span class="sh-eyebrow">Live regional network</span>', unsafe_allow_html=True)
     fig = go.Figure()
     # Edges first so nodes sit on top.
     hosp = {h.id: h for h in net}
@@ -51,14 +51,14 @@ with left:
             o, h = ss.origins[t["origin"]], hosp[t["hospital"]]
             edge_x2 += [o.x, h.x, None]
             edge_y2 += [o.y, h.y, None]
-    fig.add_scatter(x=edge_x, y=edge_y, mode="lines", line=dict(color="#c3c2b7", width=2, dash="dot"),
+    fig.add_scatter(x=edge_x, y=edge_y, mode="lines", line=dict(color=MUTED, width=1.5, dash="dot"),
                     name="계획 배정 (동시 대기 케이스)", hoverinfo="skip")
-    fig.add_scatter(x=edge_x2, y=edge_y2, mode="lines", line=dict(color=SERIES[0], width=2),
+    fig.add_scatter(x=edge_x2, y=edge_y2, mode="lines", line=dict(color=SIGNAL_LIGHT, width=2),
                     name="확정 전원", hoverinfo="skip")
-    status_color = [STATUS["serious"] if h.feed_age_min > STALE_THRESHOLD_MIN else "#0f7f6e" for h in net]
+    status_color = [SIGNAL if h.feed_age_min > STALE_THRESHOLD_MIN else INK for h in net]
     fig.add_scatter(
         x=[h.x for h in net], y=[h.y for h in net], mode="markers+text", text=[h.id for h in net],
-        textposition="top center", marker=dict(size=20, color=status_color, line=dict(color="#fcfcfb", width=2)),
+        textposition="top center", marker=dict(size=22, color=status_color, line=dict(color="#F3F0EE", width=2)),
         name="병원 (주황 = 피드 지연)",
         customdata=[[h.name, h.tier, h.beds_available, f"{h.load:.0%}", h.feed_age_min] for h in net],
         hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>가용 병상 %{customdata[2]} · "
@@ -67,7 +67,7 @@ with left:
     org = list(ss.origins.values())
     fig.add_scatter(x=[o.x for o in org], y=[o.y for o in org], mode="markers+text",
                     text=[o.id for o in org], textposition="bottom center",
-                    marker=dict(size=14, color=SERIES[4], symbol="diamond", line=dict(color="#fcfcfb", width=2)),
+                    marker=dict(size=16, color=LINK, symbol="circle-open", line=dict(color=LINK, width=2.5)),
                     name="의뢰 기관", customdata=[o.name for o in org],
                     hovertemplate="%{customdata}<extra></extra>")
     fig.update_xaxes(visible=False)
@@ -76,11 +76,11 @@ with left:
                 config={"displayModeBar": False})
 
 with right:
-    st.markdown("**CAPABILITY & FEED HEALTH**")
+    st.markdown('<span class="sh-eyebrow">Capability &amp; feed health</span>', unsafe_allow_html=True)
     for h in net:
         r = predict_readiness(h, hour())
         state = ("critical", "⛔ 제외") if h.feed_age_min > UNVERIFIABLE_MIN else \
-            ("serious", "⚠ 지연") if r.stale else ("good", "✓ 신선")
+            ("serious", "⚠ 지연") if r.stale else ("ink", "✓ 신선")
         pct = min(100, h.feed_age_min / UNVERIFIABLE_MIN * 100)
         caps = " · ".join(CAPABILITY_LABELS[c] for c in sorted(h.capabilities) if c != "CT")[:46]
         st.markdown(
@@ -88,9 +88,9 @@ with right:
             f'<b style="width:26px">{h.id}</b>'
             f'<span style="width:150px;font-size:.78rem;color:{INK2};overflow:hidden;white-space:nowrap;'
             f'text-overflow:ellipsis" title="{esc(caps)}">{esc(h.tier)}</span>'
-            f'<span style="flex:1;background:#eceae4;height:8px;border-radius:4px;position:relative">'
+            f'<span style="flex:1;background:#E2DDD7;height:8px;border-radius:999px;position:relative">'
             f'<span style="position:absolute;left:0;top:0;bottom:0;width:{max(4, pct):.0f}%;'
-            f'background:{STATUS[state[0]]};border-radius:4px"></span></span>'
+            f'background:{STATUS.get(state[0], INK)};border-radius:999px"></span></span>'
             f'<span style="width:44px;text-align:right;font-size:.8rem">{h.feed_age_min:.0f}m</span>'
             f'<span style="width:58px;font-size:.75rem;color:{MUTED}">{state[1]}</span></div>',
             unsafe_allow_html=True)

@@ -4,15 +4,14 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from common import SERIES, hour, plotly_layout, tile
+from common import INK, SERIES, SIGNAL, header, hour, plotly_layout, tile
 from synapse_h.capabilities import PATHWAYS
 from synapse_h.intake import build_case
 from synapse_h.optimizer import allocate, allocate_greedy
 
 ss = st.session_state
 
-st.markdown('<div class="sh-bar"><b>SYNAPSE-H &nbsp;|&nbsp; MULTI-CASE ALLOCATION</b>'
-            '<span>CONCURRENT REGIONAL DEMAND</span></div>', unsafe_allow_html=True)
+header("Multi-case Allocation · 다중 환자 동시 배정", "Concurrent demand")
 st.markdown(
     "한 환자에게 최선인 병원이 동시에 발생한 다른 환자에게 필요한 희소 자원을 소모할 수 있습니다 "
     "(제안서 §1.4 *Local optimization*). 동시 케이스는 병상 용량과 부하 집중(공정성) 벌점을 고려한 "
@@ -70,15 +69,15 @@ def clinical_cost(a):
 
 
 c = st.columns(4)
-c[0].markdown(tile("전역 최적 총비용", f"{clinical_cost(g):.1f}", "중증도 가중 + 공정성", "#0f7f6e"),
+c[0].markdown(tile("전역 최적 총비용", f"{clinical_cost(g):.1f}", "중증도 가중 + 공정성", INK),
               unsafe_allow_html=True)
-c[1].markdown(tile("선착순 탐욕 총비용", f"{clinical_cost(gr):.1f}", "도착 순으로 각자 최선 선택", SERIES[1]),
+c[1].markdown(tile("선착순 탐욕 총비용", f"{clinical_cost(gr):.1f}", "도착 순으로 각자 최선 선택", INK),
               unsafe_allow_html=True)
 saving = clinical_cost(gr) - clinical_cost(g)
 c[2].markdown(tile("네트워크 비용 절감", f"{saving:+.1f}" if g.escalations == gr.escalations else "—",
-                   "탐욕 대비 (같은 에스컬레이션 수일 때)", "#0f7f6e"), unsafe_allow_html=True)
+                   "탐욕 대비 (같은 에스컬레이션 수일 때)", INK), unsafe_allow_html=True)
 c[3].markdown(tile("의료지도 에스컬레이션", f"{g.escalations} / {gr.escalations}", "전역 / 탐욕",
-                   "#b4541a" if g.escalations else "#0f7f6e"), unsafe_allow_html=True)
+                   SIGNAL if g.escalations else INK), unsafe_allow_html=True)
 st.write("")
 
 rows = []
@@ -102,12 +101,12 @@ cnt_g = [sum(1 for a in g.assignments if a.hospital and a.hospital.id == h.id) f
 cnt_r = [sum(1 for a in gr.assignments if a.hospital and a.hospital.id == h.id) for h in ss.network]
 beds = [h.beds_available for h in ss.network]
 fig = go.Figure()
-fig.add_bar(x=names, y=cnt_g, name="전역 최적", marker_color=SERIES[0], marker_line=dict(color="#fcfcfb", width=2),
+fig.add_bar(x=names, y=cnt_g, name="전역 최적", marker_color=SERIES[0], marker_line=dict(color="#F3F0EE", width=2),
             hovertemplate="%{x}<br>전역 최적: %{y}명<extra></extra>")
-fig.add_bar(x=names, y=cnt_r, name="선착순 탐욕", marker_color=SERIES[1], marker_line=dict(color="#fcfcfb", width=2),
+fig.add_bar(x=names, y=cnt_r, name="선착순 탐욕", marker_color=SERIES[1], marker_line=dict(color="#F3F0EE", width=2),
             hovertemplate="%{x}<br>탐욕: %{y}명<extra></extra>")
 fig.add_scatter(x=names, y=beds, mode="markers", name="가용 병상", marker=dict(symbol="line-ew-open", size=28,
-                color="#52514e", line=dict(width=2)), hovertemplate="%{x}<br>가용 병상 %{y}<extra></extra>")
+                color="#141413", line=dict(width=2)), hovertemplate="%{x}<br>가용 병상 %{y}<extra></extra>")
 fig.update_layout(barmode="group", yaxis_title="배정 환자 수", title="병원별 배정 (용량 대비)")
 st.plotly_chart(plotly_layout(fig, height=360), width="stretch",
                 config={"displayModeBar": False})

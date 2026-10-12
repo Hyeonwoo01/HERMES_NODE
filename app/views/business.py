@@ -4,10 +4,9 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from common import SERIES, plotly_layout, tile
+from common import SERIES, header, plotly_layout, tile
 
-st.markdown('<div class="sh-bar"><b>SYNAPSE-H &nbsp;|&nbsp; MARKET &amp; BUSINESS MODEL</b>'
-            '<span>PLANNING ASSUMPTIONS · NOT CONTRACTED REVENUE</span></div>', unsafe_allow_html=True)
+header("Market & Business Model · 시장·사업 모델", "Planning assumptions")
 st.caption("기관 수: NEMC 2024 통계 [3]. 가격·예측은 경영진 가정이며 계약을 의미하지 않습니다. "
            "슬라이더로 가정을 바꿔 보세요.")
 
@@ -63,13 +62,13 @@ be = next((y for y, e in zip(base["연도"], base["EBITDA"]) if e > 0), "5년 �
 
 fig = go.Figure()
 fig.add_bar(x=base["연도"], y=base["매출"], name="매출", marker_color=SERIES[0],
-            marker_line=dict(color="#fcfcfb", width=2), hovertemplate="%{x} 매출 ₩%{y:.2f}B<extra></extra>")
+            marker_line=dict(color="#F3F0EE", width=2), hovertemplate="%{x} 매출 ₩%{y:.2f}B<extra></extra>")
 fig.add_bar(x=base["연도"], y=base["COGS"] + base["운영비"], name="COGS + 운영비", marker_color=SERIES[1],
-            marker_line=dict(color="#fcfcfb", width=2), hovertemplate="%{x} 비용 ₩%{y:.2f}B<extra></extra>")
+            marker_line=dict(color="#F3F0EE", width=2), hovertemplate="%{x} 비용 ₩%{y:.2f}B<extra></extra>")
 fig.add_scatter(x=base["연도"], y=base["EBITDA"], name="EBITDA", mode="lines+markers",
                 line=dict(color=SERIES[2], width=2), marker=dict(size=9),
                 hovertemplate="%{x} EBITDA ₩%{y:.2f}B<extra></extra>")
-fig.add_hline(y=0, line_color="#c3c2b7")
+fig.add_hline(y=0, line_color="#D1CDC7")
 fig.update_layout(barmode="group", yaxis_title="₩ Billion", title=f"영업 손익분기: {be}")
 st.plotly_chart(plotly_layout(fig, height=360), width="stretch",
                 config={"displayModeBar": False})

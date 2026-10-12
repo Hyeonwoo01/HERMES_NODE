@@ -1,9 +1,33 @@
 [theme]
 base = "light"
-primaryColor = "#0f7f6e"
-backgroundColor = "#f9f9f7"
-secondaryBackgroundColor = "#eef2f7"
-textColor = "#0b0b0b"
+# Warm editorial palette: cream canvas, ink-black primary, lifted-cream surfaces.
+primaryColor = "#141413"
+backgroundColor = "#F3F0EE"
+secondaryBackgroundColor = "#FCFBFA"
+textColor = "#141413"
+linkColor = "#3860BE"
+borderColor = "#DCD7D1"
+showWidgetBorder = true
+showSidebarBorder = false
+dataframeBorderColor = "#E2DDD7"
+dataframeHeaderBackgroundColor = "#EDE8E3"
+dataframeHeaderTextColor = "#262627"
+orangeColor = "#CF4500"
+redColor = "#C2361C"
+blueColor = "#3860BE"
+greenColor = "#1F7A4D"
+yellowColor = "#B07800"
+# Korean glyphs fall back to Noto Sans KR, loaded by the app CSS (Streamlit accepts one font URL here).
+font = "Sofia Sans:https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@1..1000&display=swap, Noto Sans KR, sans-serif"
+headingFont = "Sofia Sans, Noto Sans KR, sans-serif"
+headingFontWeights = 500
+baseFontWeight = 450
+baseRadius = "20px"
+buttonRadius = "20px"
+chartCategoricalColors = ["#3860BE", "#F37338", "#1F8A70", "#C99000", "#9A3A0A"]
+
+[theme.sidebar]
+backgroundColor = "#FCFBFA"
 
 [server]
 headless = true

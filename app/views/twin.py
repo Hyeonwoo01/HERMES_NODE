@@ -5,12 +5,11 @@ from dataclasses import replace
 import plotly.graph_objects as go
 import streamlit as st
 
-from common import SERIES, plotly_layout
+from common import SERIES, header, plotly_layout
 from synapse_h.twin import (SENSITIVITY_VARIABLES, TRAVEL_SURFACES, TwinParams,
                             sensitivity, simulate)
 
-st.markdown('<div class="sh-bar"><b>SYNAPSE-H &nbsp;|&nbsp; SYNTHETIC DIGITAL TWIN</b>'
-            '<span>NO PATIENT DATA · NOT CLINICAL VALIDATION</span></div>', unsafe_allow_html=True)
+header("Synthetic Digital Twin · 합성 디지털 트윈", "No patient data")
 st.markdown(
     "**검증 질문:** 수용이 불확실하고 병원 역량이 이질적일 때, 이동 시간과 예측 수용 확률을 결합한 점수가 "
     "*가장 가까운 적합 병원*을 고르는 방식보다 순차 전화 탐색을 줄이는가? "
@@ -66,7 +65,7 @@ with c1:
     for name, col, color in (("Nearest appropriate", "Nearest appropriate", SERIES[1]),
                              ("Synapse-H", "Synapse-H", SERIES[0])):
         fig.add_bar(x=labels, y=[s.loc[k, col] for k in keys], name=name, marker_color=color,
-                    marker_line=dict(color="#fcfcfb", width=2),
+                    marker_line=dict(color="#F3F0EE", width=2),
                     hovertemplate=f"{name}<br>%{{x}}: %{{y:.1f}}분<extra></extra>")
     fig.update_layout(barmode="group", title="평균 시간 (분)", yaxis_title="분")
     st.plotly_chart(plotly_layout(fig, height=340), width="stretch",
@@ -78,7 +77,7 @@ with c2:
         counts = episodes[col].value_counts(normalize=True).sort_index()
         counts = counts[counts.index <= 5]
         fig.add_bar(x=[str(int(i)) for i in counts.index], y=counts.values * 100, name=name, marker_color=color,
-                    marker_line=dict(color="#fcfcfb", width=2),
+                    marker_line=dict(color="#F3F0EE", width=2),
                     hovertemplate=f"{name}<br>연락 %{{x}}회: %{{y:.1f}}%<extra></extra>")
     fig.update_layout(barmode="group", title="연락 횟수 분포", xaxis_title="연락 횟수", yaxis_title="에피소드 %")
     st.plotly_chart(plotly_layout(fig, height=340), width="stretch",
@@ -88,9 +87,9 @@ st.markdown("#### 질환군별 1순위 수용률")
 by = episodes.groupby("condition")[["nearest_first_accept", "synapse_first_accept"]].mean() * 100
 fig = go.Figure()
 fig.add_bar(x=by.index, y=by["nearest_first_accept"], name="Nearest appropriate", marker_color=SERIES[1],
-            marker_line=dict(color="#fcfcfb", width=2), hovertemplate="%{x}: %{y:.1f}%<extra>Nearest</extra>")
+            marker_line=dict(color="#F3F0EE", width=2), hovertemplate="%{x}: %{y:.1f}%<extra>Nearest</extra>")
 fig.add_bar(x=by.index, y=by["synapse_first_accept"], name="Synapse-H", marker_color=SERIES[0],
-            marker_line=dict(color="#fcfcfb", width=2), hovertemplate="%{x}: %{y:.1f}%<extra>Synapse-H</extra>")
+            marker_line=dict(color="#F3F0EE", width=2), hovertemplate="%{x}: %{y:.1f}%<extra>Synapse-H</extra>")
 fig.update_layout(barmode="group", yaxis_title="1순위 수용률 (%)")
 st.plotly_chart(plotly_layout(fig, height=320), width="stretch",
                 config={"displayModeBar": False})
@@ -110,7 +109,7 @@ fig = go.Figure()
 xs = [str(v) for v in sens[var]]
 fig.add_scatter(x=xs, y=sens["first_accept_gain_pp"], mode="lines+markers", name="1순위 수용률 개선 (%p)",
                 line=dict(color=SERIES[0], width=2), marker=dict(size=9))
-fig.add_hline(y=0, line_color="#c3c2b7")
+fig.add_hline(y=0, line_color="#D1CDC7")
 fig.update_layout(title="Synapse-H − Nearest: 1순위 수용률 차이 (%p)", xaxis_title=SENSITIVITY_VARIABLES[var][0])
 st.plotly_chart(plotly_layout(fig, height=300), width="stretch",
                 config={"displayModeBar": False})
@@ -127,7 +126,7 @@ st.download_button("에피소드 단위 결과 다운로드 (.csv)", episodes.to
                    file_name=f"digital_twin_seed{params.seed}.csv", mime="text/csv")
 
 st.markdown(
-    '<div class="sh-boundary"><b>해석 방법</b> — 이 시뮬레이션은 계산적 타당성을 보여주고 파일럿 목표 설정에 '
+    '<div class="sh-boundary"><span class="sh-eyebrow">How to read this</span>이 시뮬레이션은 계산적 타당성을 보여주고 파일럿 목표 설정에 '
     "참고할 뿐입니다. 사망률 추정, 임상적 안전성 입증, 한국 병원 행태 재현, 예측 모델 검증이 아닙니다. "
     "가정은 모두 공개되어 있고(<code>synapse_h/twin.py</code>) 파트너 데이터로 하나씩 교체할 수 있습니다. "
     "‘위험보정 지연 지표’는 양식화된 지표이며 사망률이 아닙니다.</div>", unsafe_allow_html=True)

@@ -5,14 +5,13 @@ import json
 import pandas as pd
 import streamlit as st
 
-from common import tile
+from common import header, tile
 from synapse_h.models import MODEL_VERSION
 from synapse_h.readiness import COEF, STALE_THRESHOLD_MIN, UNVERIFIABLE_MIN
 
 ss = st.session_state
 
-st.markdown('<div class="sh-bar"><b>SYNAPSE-H &nbsp;|&nbsp; SAFETY &amp; AUDIT</b>'
-            '<span>REVIEWABLE TRACE</span></div>', unsafe_allow_html=True)
+header("Safety & Audit · 감사 로그", "Reviewable trace")
 
 m = ss.audit.metrics()
 
@@ -104,6 +103,6 @@ with tab_hazard:
         ["사이버 사고", "분리, 로깅, 백업, 대응 플레이북", "격리; 수동 워크플로로 안전 실패", "◻ 운영 단계"],
         ["시스템 불가용", "수동 대체 절차 문서화; 가동 모니터링", "기존 전화/공공 워크플로로 복귀", "◻ 운영 단계"],
     ], columns=["위해", "예방/감지", "안전한 대응", "데모 구현"]), hide_index=True, width="stretch")
-    st.markdown('<div class="sh-boundary"><b>GOVERNANCE PROMISE</b> — 시스템은 불확실해도 됩니다. 불완전하거나 '
+    st.markdown('<div class="sh-boundary"><span class="sh-eyebrow">Governance promise</span>시스템은 불확실해도 됩니다. 불완전하거나 '
                 "오래된 데이터로 만든 정밀해 보이는 점수보다, 눈에 보이는 abstention과 에스컬레이션이 더 안전하고 "
                 "신뢰할 수 있습니다.</div>", unsafe_allow_html=True)

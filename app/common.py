@@ -12,13 +12,16 @@ from synapse_h.data import CONCURRENT_CASES, default_network, origins
 from synapse_h.intake import build_case
 from synapse_h.optimizer import TERM_LABELS, Weights
 
-# Reference palette (dataviz skill): categorical slots in fixed order + status colors.
-SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
-STATUS = {"good": "#0ca30c", "warning": "#fab219", "serious": "#ec835a", "critical": "#d03b3b"}
+# Warm editorial design tokens (cream canvas, ink, signal orange).
+CANVAS, LIFTED, WHITE = "#F3F0EE", "#FCFBFA", "#FFFFFF"
+INK, INK2, MUTED, DUST = "#141413", "#262627", "#696969", "#D1CDC7"
+SIGNAL, SIGNAL_LIGHT, CLAY, LINK = "#CF4500", "#F37338", "#9A3A0A", "#3860BE"
+GHOST, GRID, HAIRLINE = "#E8E2DA", "#E2DDD7", "rgba(20,20,19,0.10)"
+# Chart categorical slots in fixed order, validated on the cream canvas (CVD + contrast).
+SERIES = [LINK, SIGNAL_LIGHT, "#1F8A70", "#C99000", CLAY]
+STATUS = {"good": "#1F7A4D", "warning": "#C99000", "serious": SIGNAL_LIGHT, "critical": "#C2361C"}
 TERM_COLORS = dict(zip(TERM_LABELS, SERIES))
-NAVY = "#0b2545"
-INK, INK2, MUTED, GRID = "#0b0b0b", "#52514e", "#898781", "#e1e0d9"
-
+FONT = "'Sofia Sans', 'Noto Sans KR', sans-serif"
 
 def init_state() -> None:
     ss = st.session_state
@@ -88,48 +91,135 @@ def esc(text) -> str:
 
 CSS = f"""
 <style>
-.sh-bar {{background:{NAVY};color:#fff;border-radius:10px;padding:14px 20px;display:flex;
-  justify-content:space-between;align-items:center;margin-bottom:12px;}}
-.sh-bar b {{font-size:1.15rem;letter-spacing:.04em}}
-.sh-bar span {{font-size:.8rem;font-weight:700;letter-spacing:.06em;opacity:.9}}
-.sh-case {{border:1px solid {GRID};border-radius:10px;padding:12px 16px;background:#fff;margin-bottom:10px}}
-.sh-case .cid {{color:#2a78d6;font-weight:700;font-size:.8rem}}
-.sh-case .title {{font-size:1.2rem;font-weight:700;color:{INK}}}
-.sh-case .sub {{color:{INK2};font-size:.85rem}}
-.sh-pill {{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.75rem;font-weight:700;
-  border:1.5px solid;margin-left:6px;white-space:nowrap}}
-.sh-card {{border:1.5px solid #c9d6e8;border-radius:10px;padding:12px 16px;margin-bottom:8px;background:#fff}}
-.sh-card.top {{border-color:#1baf7a;background:#f1faf6}}
-.sh-card .row {{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}}
-.sh-rank {{display:inline-flex;width:28px;height:28px;border-radius:50%;background:#2a78d6;color:#fff;
-  align-items:center;justify-content:center;font-weight:700;margin-right:10px;flex:none}}
-.sh-card.top .sh-rank {{background:#0f7f6e}}
-.sh-name {{font-weight:700;color:{INK}}}
-.sh-reason {{color:{INK2};font-size:.85rem}}
-.sh-eta {{text-align:right;font-size:.85rem;color:{INK};white-space:nowrap}}
-.sh-eta b {{font-size:1rem}}
-.sh-warn {{color:#a4510f;font-size:.8rem;margin-top:4px}}
-.sh-why {{border:1.5px solid #e87ba4;background:#fdf3f7;border-radius:10px;padding:10px 14px;color:{INK}}}
-.sh-why b {{color:#b0306a}}
-.sh-esc {{border:2px solid {STATUS['critical']};background:#fdf1f1;border-radius:10px;padding:14px 16px;color:{INK}}}
-.sh-esc b {{color:{STATUS['critical']}}}
-.sh-tile {{border:1px solid {GRID};border-radius:10px;padding:10px 14px;background:#fff}}
-.sh-tile .k {{font-size:.72rem;font-weight:700;color:{INK2};letter-spacing:.05em;text-transform:uppercase}}
-.sh-tile .v {{font-size:1.8rem;font-weight:700;color:{INK};line-height:1.2}}
-.sh-tile .s {{font-size:.75rem;color:{MUTED}}}
-.sh-step {{border-radius:10px;padding:10px 12px;color:#fff;min-height:118px}}
-.sh-step b {{display:block;margin-bottom:4px}}
-.sh-step small {{opacity:.92}}
-.sh-boundary {{border-left:4px solid {STATUS['critical']};background:#fdf6f2;padding:10px 14px;border-radius:6px;color:{INK}}}
-mark.ev {{background:#fff1b8;padding:0 2px;border-radius:3px}}
-@media (max-width: 640px) {{
-  .sh-bar {{flex-direction:column;align-items:flex-start;gap:4px;padding:12px 14px}}
-  .sh-bar b {{font-size:1rem}}
-  .sh-case .title {{font-size:1.05rem}}
-  .sh-card .row {{flex-direction:column;gap:6px}}
-  .sh-eta {{text-align:left;white-space:normal;padding-left:38px}}
-  .sh-tile .v {{font-size:1.5rem}}
-  .sh-step {{min-height:0}}
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap");
+h1, h2, h3, h4 {{letter-spacing:-0.02em}}
+[data-testid="stAppViewContainer"] .block-container {{padding-top:2.5rem}}
+
+/* Floating pill navigation header */
+.sh-nav {{background:{WHITE};border-radius:999px;box-shadow:rgba(0,0,0,0.04) 0 4px 24px 0;
+  padding:14px 32px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 28px}}
+.sh-nav .brand {{display:flex;align-items:center;gap:14px;min-width:0}}
+.sh-nav .logo {{font-weight:700;font-size:1rem;letter-spacing:-0.01em;color:{INK};white-space:nowrap}}
+.sh-nav .logo i {{display:inline-block;width:10px;height:10px;border-radius:50%;background:{SIGNAL};
+  margin-right:8px;vertical-align:1px}}
+.sh-nav .ttl {{font-weight:500;font-size:1rem;letter-spacing:-0.03em;color:{INK2};white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}}
+.sh-nav .sep {{width:1px;height:20px;background:{DUST}}}
+
+/* Eyebrow label: accent dot + uppercase tracking (the only uppercase in the system) */
+.sh-eyebrow {{font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:{INK2};
+  white-space:nowrap}}
+.sh-eyebrow::before {{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:{SIGNAL};margin-right:8px;vertical-align:2px}}
+
+/* Case header + cards */
+.sh-case {{border-radius:32px;padding:24px 28px;background:{LIFTED};margin-bottom:16px}}
+.sh-case .title {{font-size:1.5rem;font-weight:500;letter-spacing:-0.02em;color:{INK};line-height:1.2;margin:8px 0 6px}}
+.sh-case .sub {{color:{MUTED};font-size:.9rem;line-height:1.5}}
+.sh-pill {{display:inline-block;border-radius:999px;padding:3px 12px;font-size:.72rem;font-weight:700;
+  letter-spacing:.04em;border:1.5px solid;margin-left:8px;white-space:nowrap;vertical-align:4px}}
+.sh-card {{border-radius:32px;padding:20px 24px;margin-bottom:12px;background:{LIFTED};border:1px solid {HAIRLINE}}}
+.sh-card.top {{background:{WHITE};border:1.5px solid {INK};box-shadow:rgba(0,0,0,0.08) 0 24px 48px 0}}
+.sh-card .row {{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}}
+.sh-rank {{display:inline-flex;width:40px;height:40px;border-radius:50%;background:{WHITE};color:{INK};
+  border:1.5px solid {INK};align-items:center;justify-content:center;font-weight:500;font-size:1.05rem;
+  margin-right:14px;flex:none}}
+.sh-card.top .sh-rank {{background:{INK};color:{CANVAS}}}
+.sh-name {{font-weight:500;font-size:1.15rem;letter-spacing:-0.02em;color:{INK}}}
+.sh-name small {{color:{MUTED};font-weight:450;font-size:.78rem;letter-spacing:0;margin-left:6px}}
+.sh-reason {{color:{MUTED};font-size:.9rem;line-height:1.45;margin-top:2px}}
+.sh-eta {{text-align:right;font-size:.88rem;color:{INK2};white-space:nowrap;line-height:1.6}}
+.sh-eta b {{font-size:1.05rem;font-weight:500;color:{INK}}}
+.sh-eta .muted {{color:{MUTED}}}
+.sh-warn {{color:{CLAY};font-size:.82rem;margin-top:6px}}
+
+.sh-why {{background:{WHITE};border-radius:32px;padding:18px 24px;color:{INK};line-height:1.5}}
+.sh-why .sh-eyebrow {{display:block;margin-bottom:6px}}
+.sh-esc {{background:{INK};color:{CANVAS};border-radius:32px;padding:22px 28px;line-height:1.55}}
+.sh-esc .sh-eyebrow {{display:block;color:{SIGNAL_LIGHT};margin-bottom:6px}}
+.sh-esc .sh-eyebrow::before {{background:{SIGNAL_LIGHT}}}
+
+/* Stat tiles */
+.sh-tile {{border-radius:32px;padding:20px 24px;background:{LIFTED};height:100%}}
+.sh-tile .k {{font-size:.72rem;font-weight:700;color:{INK2};letter-spacing:.04em;text-transform:uppercase}}
+.sh-tile .k::before {{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:{SIGNAL};margin-right:7px;vertical-align:2px}}
+.sh-tile .v {{font-size:2.25rem;font-weight:500;letter-spacing:-0.02em;color:{INK};line-height:1.15;margin-top:6px}}
+.sh-tile .s {{font-size:.8rem;color:{MUTED}}}
+
+/* Home: hero, orbit steps, portrait links, footer */
+.sh-hero {{position:relative;padding:8px 0 24px;overflow:hidden}}
+.sh-hero .ghost {{position:absolute;right:-8px;top:-18px;font-size:clamp(72px,12vw,150px);font-weight:500;
+  letter-spacing:-0.04em;color:{GHOST};line-height:1;z-index:0;pointer-events:none;user-select:none}}
+.sh-hero .sh-eyebrow {{position:relative;z-index:1}}
+.sh-hero h1 {{position:relative;z-index:1;font-size:clamp(2.2rem,5vw,4rem);font-weight:500;line-height:1.05;
+  letter-spacing:-0.02em;margin:14px 0 18px;padding:0;max-width:16ch}}
+.sh-hero p {{position:relative;z-index:1;font-size:1.05rem;line-height:1.55;color:{INK2};max-width:56ch}}
+.sh-steps {{position:relative;display:flex;justify-content:space-between;gap:12px;margin:20px 0 8px}}
+.sh-steps svg {{position:absolute;left:0;top:0;width:100%;height:90px;z-index:0;overflow:visible}}
+.sh-step {{position:relative;z-index:1;flex:1;text-align:center;min-width:0}}
+.sh-step .orb {{width:88px;height:88px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;
+  justify-content:center;background:{WHITE};border:1.5px solid {INK};font-size:1.6rem;font-weight:500;color:{INK}}}
+.sh-step:nth-child(even) {{margin-top:34px}}
+.sh-step b {{display:block;font-weight:500;font-size:1.05rem;letter-spacing:-0.02em}}
+.sh-step small {{display:block;color:{MUTED};font-size:.85rem;line-height:1.4;padding:0 6px}}
+.sh-orbits {{display:flex;flex-wrap:wrap;gap:28px 48px;justify-content:center;margin:12px auto;max-width:760px}}
+.sh-portrait {{position:relative;width:200px;text-decoration:none!important;color:{INK}!important}}
+.sh-portrait:nth-child(3n+2) {{margin-top:48px}}
+.sh-portrait .disc {{width:168px;height:168px;border-radius:50%;margin:0 auto;display:flex;align-items:center;
+  justify-content:center;font-size:3.2rem;background:{WHITE};box-shadow:rgba(0,0,0,0.08) 0 24px 48px 0;position:relative}}
+.sh-portrait .sat {{position:absolute;right:6px;bottom:4px;width:52px;height:52px;border-radius:50%;background:{INK};
+  color:{CANVAS};display:flex;align-items:center;justify-content:center;font-size:1.3rem}}
+.sh-portrait .sh-eyebrow {{display:block;text-align:center;margin-top:16px;font-size:.7rem}}
+.sh-portrait b {{display:block;text-align:center;font-weight:500;font-size:1.2rem;letter-spacing:-0.02em;margin-top:4px}}
+.sh-portrait small {{display:block;text-align:center;color:{MUTED};font-size:.84rem;line-height:1.4;margin-top:4px}}
+.sh-footer {{background:{INK};color:{CANVAS};border-radius:40px;padding:48px 44px 40px;margin-top:40px}}
+.sh-footer h2 {{color:{CANVAS}!important;font-weight:500;font-size:clamp(1.6rem,3vw,2.25rem);
+  letter-spacing:-0.02em;line-height:1.2;margin:0 0 28px;padding:0;max-width:32ch}}
+.sh-footer .cols {{display:grid;grid-template-columns:repeat(3,1fr);gap:28px}}
+.sh-footer .h {{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#A39E98;margin-bottom:8px}}
+.sh-footer p {{font-size:.88rem;line-height:1.55;color:{CANVAS};margin:0}}
+.sh-footer .rule {{height:1px;background:rgba(255,255,255,0.18);margin:32px 0 16px}}
+.sh-footer .fine {{font-size:.78rem;color:#A39E98}}
+.sh-boundary {{background:{LIFTED};border-radius:32px;padding:22px 28px;color:{INK};line-height:1.55}}
+.sh-boundary .sh-eyebrow {{display:block;margin-bottom:6px}}
+mark.ev {{background:#F9D9C5;padding:1px 4px;border-radius:6px;color:{INK}}}
+
+/* Streamlit widgets: ink pill primary, outlined pill secondary */
+[data-testid^="stBaseButton-primary"] {{background:{INK}!important;border:1.5px solid {INK}!important;
+  color:{CANVAS}!important}}
+[data-testid^="stBaseButton-primary"] p {{color:{CANVAS}!important;font-weight:500;letter-spacing:-0.02em}}
+[data-testid^="stBaseButton-secondary"] {{background:{WHITE}!important;border:1.5px solid {INK}!important;
+  color:{INK}!important}}
+[data-testid^="stBaseButton-secondary"] p {{font-weight:500;letter-spacing:-0.02em}}
+[data-testid^="stBaseButton"]:active {{transform:translateY(1px)}}
+[data-testid="stExpander"] details {{border-radius:24px;background:{LIFTED}}}
+[data-testid="stAlert"] > div {{border-radius:24px}}
+[data-testid="stForm"] {{border-radius:32px;background:{LIFTED};padding:24px}}
+[data-testid="stDataFrame"], [data-testid="stTable"] {{border-radius:20px;overflow:hidden}}
+
+@media (max-width: 767px) {{
+  .sh-nav {{padding:12px 20px;border-radius:28px;flex-wrap:wrap;gap:6px 12px}}
+  .sh-nav .ttl {{font-size:.92rem}}
+  .sh-nav .sep {{display:none}}
+  .sh-case {{padding:20px}}
+  .sh-case .title {{font-size:1.2rem}}
+  .sh-card {{padding:18px 20px;border-radius:28px}}
+  .sh-card .row {{flex-direction:column;gap:8px}}
+  .sh-eta {{text-align:left;white-space:normal;padding-left:54px}}
+  .sh-tile .v {{font-size:1.75rem}}
+  .sh-steps {{flex-direction:column;gap:18px}}
+  .sh-steps svg {{display:none}}
+  .sh-step {{display:flex;align-items:center;gap:16px;text-align:left}}
+  .sh-step:nth-child(even) {{margin-top:0}}
+  .sh-step .orb {{width:56px;height:56px;margin:0;flex:none;font-size:1.2rem}}
+  .sh-step small {{padding:0}}
+  .sh-portrait:nth-child(3n+2) {{margin-top:0}}
+  .sh-portrait {{width:150px}}
+  .sh-portrait .disc {{width:132px;height:132px;font-size:2.6rem}}
+  .sh-portrait .sat {{width:44px;height:44px;font-size:1.1rem}}
+  .sh-footer {{padding:36px 24px 28px;border-radius:32px}}
+  .sh-footer .cols {{grid-template-columns:1fr}}
 }}
 </style>
 """
@@ -137,6 +227,14 @@ mark.ev {{background:#fff1b8;padding:0 2px;border-radius:3px}}
 
 def inject_css() -> None:
     st.markdown(CSS, unsafe_allow_html=True)
+
+
+def header(title: str, tag: str) -> None:
+    """Floating pill navigation header shown at the top of every page."""
+    st.markdown(
+        f'<div class="sh-nav"><div class="brand"><span class="logo"><i></i>SYNAPSE-H</span>'
+        f'<span class="sep"></span><span class="ttl">{esc(title)}</span></div>'
+        f'<span class="sh-eyebrow">{esc(tag)}</span></div>', unsafe_allow_html=True)
 
 
 def tile(label: str, value: str, sub: str = "", color: str = INK) -> str:
@@ -147,13 +245,14 @@ def tile(label: str, value: str, sub: str = "", color: str = INK) -> str:
 
 def plotly_layout(fig, height: int = 360, **kw):
     fig.update_layout(
-        height=height, margin=dict(l=10, r=10, t=40, b=10),
-        paper_bgcolor="#fcfcfb", plot_bgcolor="#fcfcfb",
-        font=dict(family="system-ui, -apple-system, 'Segoe UI', sans-serif", color=INK, size=13),
+        height=height, margin=dict(l=10, r=10, t=48, b=10),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family=FONT, color=INK, size=13),
+        title_font=dict(family=FONT, size=16, color=INK),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        hoverlabel=dict(bgcolor="#fff", font_color=INK),
+        hoverlabel=dict(bgcolor=WHITE, font_color=INK, font_family=FONT, bordercolor=DUST),
         **kw,
     )
-    fig.update_xaxes(gridcolor=GRID, linecolor="#c3c2b7", zeroline=False, tickfont_color=MUTED)
-    fig.update_yaxes(gridcolor=GRID, linecolor="#c3c2b7", zeroline=False, tickfont_color=MUTED)
+    fig.update_xaxes(gridcolor=GRID, linecolor=DUST, zeroline=False, tickfont_color=MUTED)
+    fig.update_yaxes(gridcolor=GRID, linecolor=DUST, zeroline=False, tickfont_color=MUTED)
     return fig

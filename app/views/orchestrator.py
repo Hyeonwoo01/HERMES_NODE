@@ -8,7 +8,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from common import (STATUS, TERM_COLORS, esc, hour, next_case_id, plotly_layout)
+from common import (INK, SIGNAL, TERM_COLORS, esc, header, hour, next_case_id,
+                    plotly_layout)
 from synapse_h.capabilities import PATHWAYS, required_capabilities
 from synapse_h.data import SCENARIOS, travel_minutes
 from synapse_h.fhir import case_bundle
@@ -34,8 +35,7 @@ def mode_label():
     return "SHADOW MODE" if ss.mode == "shadow" else "CONTROLLED PILOT"
 
 
-st.markdown(f'<div class="sh-bar"><b>SYNAPSE-H &nbsp;|&nbsp; TRANSFER ORCHESTRATOR</b>'
-            f'<span>{mode_label()}</span></div>', unsafe_allow_html=True)
+header("Transfer Orchestrator · 전원 오케스트레이터", mode_label())
 
 
 # ---------------------------------------------------------------------------
@@ -161,12 +161,12 @@ def case_header(case, rec):
     if fresh is None:
         pill = ""
     elif max(o.hospital.feed_age_min for o in rec.options) > 15:
-        pill = f'<span class="sh-pill" style="color:#a4510f;border-color:{STATUS["serious"]}">⚠ STALE FEED</span>'
+        pill = f'<span class="sh-pill" style="color:{SIGNAL};border-color:{SIGNAL}">⚠ STALE FEED</span>'
     else:
-        pill = f'<span class="sh-pill" style="color:#0f7f6e;border-color:#1baf7a">DATA FRESH {fresh:.0f}m</span>'
+        pill = f'<span class="sh-pill" style="color:{INK};border-color:{INK}">DATA FRESH {fresh:.0f}m</span>'
     sex = {"male": "남", "female": "여"}[case.sex]
     st.markdown(
-        f'<div class="sh-case"><div class="cid">CASE {esc(case.case_id)} · {esc(ss.origins[case.origin_id].name)}</div>'
+        f'<div class="sh-case"><span class="sh-eyebrow">Case {esc(case.case_id)} · {esc(ss.origins[case.origin_id].name)}</span>'
         f'<div class="title">{esc(PATHWAYS[case.pathway].label)} • Pre-KTAS {case.ktas} • onset {case.onset_min:.0f} min ago {pill}</div>'
         f'<div class="sub">{case.age}세 {sex} · BP {case.sbp}/{case.dbp or "–"} · HR {case.hr} · SpO₂ {case.spo2}%'
         f'{" · GCS " + str(case.gcs) if case.gcs else ""} &nbsp;|&nbsp; 필요 역량: {esc(caps)} &nbsp;|&nbsp; '
@@ -179,10 +179,10 @@ def option_card(o, top: bool):
     return (
         f'<div class="sh-card{" top" if top else ""}"><div class="row">'
         f'<div style="display:flex"><span class="sh-rank">{o.rank}</span><div>'
-        f'<div class="sh-name">{esc(o.hospital.name)} <span style="color:#898781;font-weight:400;font-size:.8rem">'
-        f'{esc(o.hospital.tier)}</span></div><div class="sh-reason">{esc(o.reason)}</div>{warn}</div></div>'
+        f'<div class="sh-name">{esc(o.hospital.name)}<small>'
+        f'{esc(o.hospital.tier)}</small></div><div class="sh-reason">{esc(o.reason)}</div>{warn}</div></div>'
         f'<div class="sh-eta">ETA <b>{o.travel_min:.0f} min</b><br>'
-        f'예측 수용 <b>{r.accept_prob:.0%}</b> <span style="color:#898781">({r.low:.0%}–{r.high:.0%})</span><br>'
+        f'예측 수용 <b>{r.accept_prob:.0%}</b> <span class="muted">({r.low:.0%}–{r.high:.0%})</span><br>'
         f'신뢰도 {CONFIDENCE_KO[r.confidence]} · 피드 {o.hospital.feed_age_min:.0f}분 전</div>'
         f'</div></div>')
 
@@ -193,7 +193,7 @@ def cost_chart(rec):
     for term, label in TERM_LABELS.items():
         vals = [o.terms[term] for o in rec.options][::-1]
         fig.add_bar(y=names, x=vals, name=label, orientation="h", marker_color=TERM_COLORS[term],
-                    marker_line=dict(color="#fcfcfb", width=2),
+                    marker_line=dict(color="#F3F0EE", width=2),
                     hovertemplate=f"{label}: %{{x:.1f}}<extra>%{{y}}</extra>")
     fig.update_layout(barmode="stack", xaxis_title="가중 비용 (분 환산, 낮을수록 좋음)")
     st.plotly_chart(plotly_layout(fig, height=110 + 50 * len(rec.options)), width="stretch",
@@ -232,7 +232,7 @@ def decide():
                 + " → 제외 후 재순위화했습니다.")
 
     if rec.escalate:
-        st.markdown(f'<div class="sh-esc"><b>🚨 ESCALATE TO MEDICAL CONTROL</b><br>{esc(rec.escalation_reason)}</div>',
+        st.markdown(f'<div class="sh-esc"><span class="sh-eyebrow">Escalate to medical control</span>{esc(rec.escalation_reason)}</div>',
                     unsafe_allow_html=True)
         st.write("")
 
@@ -276,7 +276,7 @@ def decide():
                                  help="1순위가 아닌 선택은 오버라이드이며 사유가 필요합니다"):
                         O["pending_override"] = o.hospital.id
                         st.rerun()
-        st.markdown(f'<div class="sh-why"><b>WHY #1</b> &nbsp;{esc(rec.why_top)}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="sh-why"><span class="sh-eyebrow">Why #1</span>{esc(rec.why_top)}</div>', unsafe_allow_html=True)
         st.write("")
 
     if O.get("shadow_choice"):
@@ -371,7 +371,8 @@ def done():
                    f"{travel_minutes(ss.origins[case.origin_id], h):.0f}분")
     else:
         h = None
-        st.markdown(f'<div class="sh-esc"><b>🚨 의료지도(Medical Control)로 에스컬레이션됨</b><br>'
+        st.markdown(f'<div class="sh-esc"><span class="sh-eyebrow">Escalated to medical control</span>'
+                    f'의료지도(Medical Control)로 에스컬레이션되었습니다.<br>'
                     f'{esc(O.get("esc_reason", ""))}</div>', unsafe_allow_html=True)
         st.write("")
 
