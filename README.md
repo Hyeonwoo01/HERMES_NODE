@@ -11,12 +11,28 @@ SYNAPSE-H 프로젝트
 
 ## 실행
 
+Python 3.10 이상이 필요합니다. 저장소 최상위 폴더(`HERMES_NODE`)에서 실행하세요.
+
+Mac / Linux:
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run app/streamlit_app.py      # http://localhost:8501
 pytest                                  # 엔진 테스트
 ```
+
+Windows (PowerShell):
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+streamlit run app/streamlit_app.py
+```
+
+PowerShell에서 가상환경 활성화가 막히면 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`를 한 번 실행하세요.
+다음부터는 가상환경 활성화와 `streamlit run` 두 줄만 실행하면 됩니다.
 
 ## 화면 구성
 
