@@ -57,15 +57,15 @@ def sidebar() -> None:
         ss.user = st.text_input("사용자 (권한 있는 의료진)", ss.user)
         ss.clock = st.time_input("시뮬레이션 시각", ss.clock, step=60 * 30)
 
-        with st.expander("⚖️ 목적 함수 가중치 (w₁–w₅)"):
-            st.caption("min Σ w₁T + w₂C + w₃(1−A)R + w₄L + w₅U + λF(x)")
+        with st.expander("⚖️ 추천 기준 중요도"):
+            st.caption("병원 순위를 매길 때 각 기준을 얼마나 중요하게 볼지 조절합니다. 1.0이 기본값입니다.")
             w = ss.weights
             ss.weights = Weights(
-                travel=st.slider("w₁ 이동 시간 T", 0.0, 2.0, w.travel, 0.1),
-                confirm=st.slider("w₂ 승인 지연 C", 0.0, 2.0, w.confirm, 0.1),
-                rejection=st.slider("w₃ 거절 위험 (1−A)", 0.0, 2.0, w.rejection, 0.1),
-                load=st.slider("w₄ 병원 부하 L", 0.0, 2.0, w.load, 0.1),
-                uncertainty=st.slider("w₅ 불확실성 U", 0.0, 2.0, w.uncertainty, 0.1),
+                travel=st.slider("이동 시간", 0.0, 2.0, w.travel, 0.1),
+                confirm=st.slider("승인 대기 시간", 0.0, 2.0, w.confirm, 0.1),
+                rejection=st.slider("거절 위험", 0.0, 2.0, w.rejection, 0.1),
+                load=st.slider("병원 혼잡도", 0.0, 2.0, w.load, 0.1),
+                uncertainty=st.slider("데이터 불확실성", 0.0, 2.0, w.uncertainty, 0.1),
             )
             if st.button("기본값으로", width="stretch"):
                 ss.weights = Weights()
