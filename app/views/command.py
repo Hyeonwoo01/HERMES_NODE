@@ -72,7 +72,8 @@ with left:
                     hovertemplate="%{customdata}<extra></extra>")
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False, scaleanchor="x")
-    st.plotly_chart(plotly_layout(fig, height=420), use_container_width=True)
+    st.plotly_chart(plotly_layout(fig, height=420), width="stretch",
+                config={"displayModeBar": False})
 
 with right:
     st.markdown("**CAPABILITY & FEED HEALTH**")
@@ -100,15 +101,15 @@ if stale:
                "초과했습니다. 해당 병원 추천은 하향 가중되며 화면에 표시됩니다.")
 
 c1, c2, c3 = st.columns(3)
-if c1.button("⏩ 시간 경과 시뮬레이션 (+10분)", use_container_width=True):
+if c1.button("⏩ 시간 경과 시뮬레이션 (+10분)", width="stretch"):
     for h in net:
         h.feed_age_min += 10
     st.rerun()
-if c2.button("🔄 모든 피드 갱신", use_container_width=True):
+if c2.button("🔄 모든 피드 갱신", width="stretch"):
     for h in net:
         h.feed_age_min = 1
     st.rerun()
-if c3.button("↺ 네트워크 초기화", use_container_width=True):
+if c3.button("↺ 네트워크 초기화", width="stretch"):
     from synapse_h.data import default_network
     ss.network = default_network()
     ss.transfers = []
@@ -122,7 +123,7 @@ df = pd.DataFrame([{
     "예측 수용": round(predict_readiness(h, hour()).accept_prob, 2),
 } for h in net])
 edited = st.data_editor(
-    df, hide_index=True, use_container_width=True,
+    df, hide_index=True, width="stretch",
     disabled=["ID", "병원", "등급", "예측 수용"],
     column_config={
         "부하": st.column_config.NumberColumn(min_value=0.0, max_value=1.0, step=0.05, format="%.2f"),
@@ -146,4 +147,4 @@ if ss.transfers:
     st.dataframe(pd.DataFrame([{
         "케이스": t["case_id"], "의뢰 기관": ss.origins[t["origin"]].name,
         "목적지": next((h.name for h in net if h.id == t["hospital"]), "의료지도"), "상태": t["status"],
-    } for t in ss.transfers]), hide_index=True, use_container_width=True)
+    } for t in ss.transfers]), hide_index=True, width="stretch")

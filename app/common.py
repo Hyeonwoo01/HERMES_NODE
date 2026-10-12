@@ -64,7 +64,7 @@ def sidebar() -> None:
                 load=st.slider("w₄ 병원 부하 L", 0.0, 2.0, w.load, 0.1),
                 uncertainty=st.slider("w₅ 불확실성 U", 0.0, 2.0, w.uncertainty, 0.1),
             )
-            if st.button("기본값으로", use_container_width=True):
+            if st.button("기본값으로", width="stretch"):
                 ss.weights = Weights()
                 st.rerun()
 
@@ -122,6 +122,15 @@ CSS = f"""
 .sh-step small {{opacity:.92}}
 .sh-boundary {{border-left:4px solid {STATUS['critical']};background:#fdf6f2;padding:10px 14px;border-radius:6px;color:{INK}}}
 mark.ev {{background:#fff1b8;padding:0 2px;border-radius:3px}}
+@media (max-width: 640px) {{
+  .sh-bar {{flex-direction:column;align-items:flex-start;gap:4px;padding:12px 14px}}
+  .sh-bar b {{font-size:1rem}}
+  .sh-case .title {{font-size:1.05rem}}
+  .sh-card .row {{flex-direction:column;gap:6px}}
+  .sh-eta {{text-align:left;white-space:normal;padding-left:38px}}
+  .sh-tile .v {{font-size:1.5rem}}
+  .sh-step {{min-height:0}}
+}}
 </style>
 """
 

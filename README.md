@@ -34,6 +34,21 @@ streamlit run app/streamlit_app.py
 PowerShell에서 가상환경 활성화가 막히면 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`를 한 번 실행하세요.
 다음부터는 가상환경 활성화와 `streamlit run` 두 줄만 실행하면 됩니다.
 
+## 스마트폰에서 실행
+
+앱을 Streamlit Community Cloud(무료)에 배포하면 휴대폰 브라우저에서 접속해 앱처럼 쓸 수 있습니다.
+화면은 휴대폰 폭에 맞게 자동으로 바뀝니다.
+
+1. https://share.streamlit.io 에 GitHub 계정으로 로그인합니다.
+2. **Create app → Deploy a public app from GitHub**를 선택합니다.
+3. Repository `Hyeonwoo01/HERMES_NODE`, Branch `main`, Main file path `app/streamlit_app.py`를 입력합니다.
+4. 원하는 주소(예: `synapse-h.streamlit.app`)를 정하고 **Deploy**를 누릅니다. 첫 배포는 몇 분 걸립니다.
+5. 휴대폰 브라우저로 그 주소에 접속한 뒤 홈 화면에 추가합니다.
+   - iPhone (Safari): 공유 버튼 → **홈 화면에 추가**
+   - Android (Chrome): 오른쪽 위 ⋮ → **홈 화면에 추가** 또는 **앱 설치**
+
+`main`에 푸시하면 배포된 앱도 자동으로 갱신됩니다. 한동안 접속이 없으면 앱이 잠들며, 다시 열 때 깨우기 버튼을 누르면 됩니다.
+
 ## 화면 구성
 
 | 화면 | 제안서 근거 | 기능 |

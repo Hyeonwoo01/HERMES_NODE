@@ -90,7 +90,7 @@ def confirm():
             "근거": f.evidence,
             "메모": f.message,
         })
-    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
     if res.red_flags:
         st.warning("🚩 Red flags: " + ", ".join(res.red_flags))
     if not res.can_proceed:
@@ -196,7 +196,8 @@ def cost_chart(rec):
                     marker_line=dict(color="#fcfcfb", width=2),
                     hovertemplate=f"{label}: %{{x:.1f}}<extra>%{{y}}</extra>")
     fig.update_layout(barmode="stack", xaxis_title="가중 비용 (분 환산, 낮을수록 좋음)")
-    st.plotly_chart(plotly_layout(fig, height=110 + 50 * len(rec.options)), use_container_width=True)
+    st.plotly_chart(plotly_layout(fig, height=110 + 50 * len(rec.options)), width="stretch",
+                config={"displayModeBar": False})
 
 
 def log_recommendation(rec):
@@ -268,10 +269,10 @@ def decide():
             c1.markdown(option_card(o, o.rank == 1), unsafe_allow_html=True)
             if not O.get("shadow_choice"):
                 if o.rank == 1:
-                    if c2.button("SELECT", key=f"sel_{o.hospital.id}", type="primary", use_container_width=True):
+                    if c2.button("SELECT", key=f"sel_{o.hospital.id}", type="primary", width="stretch"):
                         start_contact(o.hospital.id, 1)
                 else:
-                    if c2.button("SELECT", key=f"sel_{o.hospital.id}", use_container_width=True,
+                    if c2.button("SELECT", key=f"sel_{o.hospital.id}", width="stretch",
                                  help="1순위가 아닌 선택은 오버라이드이며 사유가 필요합니다"):
                         O["pending_override"] = o.hospital.id
                         st.rerun()
@@ -299,7 +300,7 @@ def decide():
                 else:
                     O["pending_override"] = None
                     start_contact(hid, rank_of[hid], reason.strip())
-        if c2.button("📞 CALL MEDICAL CONTROL", use_container_width=True):
+        if c2.button("📞 CALL MEDICAL CONTROL", width="stretch"):
             escalate(rec, rec.escalation_reason or "사용자 판단으로 의료지도 호출")
     else:
         if st.button("📞 CALL MEDICAL CONTROL", type="primary"):
@@ -313,10 +314,10 @@ def decide():
                 "승인지연(분)": o.hospital.confirm_delay_min, "예측 수용": f"{o.readiness.accept_prob:.0%}",
                 "부하": f"{o.hospital.load:.0%}", "불확실성": round(o.readiness.uncertainty, 2),
                 "예상 승인+이송(분)": round(o.expected_time_min, 1), "총 비용": round(o.cost, 1),
-            } for o in full.options]), hide_index=True, use_container_width=True)
+            } for o in full.options]), hide_index=True, width="stretch")
     with st.expander(f"🚫 제외된 병원 {len(rec.excluded)}곳 — Hard constraints"):
         st.dataframe(pd.DataFrame([{"병원": e.hospital.name, "등급": e.hospital.tier, "제외 사유": e.reason}
-                                   for e in rec.excluded]), hide_index=True, use_container_width=True)
+                                   for e in rec.excluded]), hide_index=True, width="stretch")
     st.caption(f"모델: {rec.model_version} · 계산 {rec.latency_ms:.1f} ms")
 
 
@@ -331,12 +332,12 @@ def contact():
     st.markdown(f"연락 시도 **{n_prev + 1}회차** · 추천 순위 **{O['contact_rank']}** · "
                 f"전원 데스크 평균 응답 {h.confirm_delay_min:.0f}분")
     c1, c2, c3 = st.columns(3)
-    if c1.button("✅ 수용 (Accepted)", type="primary", use_container_width=True):
+    if c1.button("✅ 수용 (Accepted)", type="primary", width="stretch"):
         record_outcome(h, True)
     reason = c2.selectbox("거절 사유", REFUSAL_REASONS, label_visibility="collapsed")
-    if c2.button("❌ 거절 (Refused)", use_container_width=True):
+    if c2.button("❌ 거절 (Refused)", width="stretch"):
         record_outcome(h, False, reason)
-    if c3.button("🎲 응답 시뮬레이션", use_container_width=True,
+    if c3.button("🎲 응답 시뮬레이션", width="stretch",
                  help="예측 수용 확률로 응답을 무작위 생성합니다 (데모용)"):
         p = predict_readiness(h, hour()).accept_prob
         accepted = bool(np.random.default_rng().random() < p)
@@ -381,7 +382,7 @@ def done():
         "병원": e.get("hospital") or ", ".join(o["hospital"] for o in e.get("options", [])),
         "추천순위": e.get("recommended_rank"), "수용": e.get("accepted"),
         "사유": e.get("override_reason") or e.get("reason") or "", "모드": e.get("mode", ""),
-    } for e in events]), hide_index=True, use_container_width=True)
+    } for e in events]), hide_index=True, width="stretch")
 
     bundle = case_bundle(case, h)
     with st.expander("🧾 FHIR R5 케이스 번들 (Patient · Observation · Condition · ServiceRequest · Task)"):
@@ -389,8 +390,8 @@ def done():
     c1, c2 = st.columns(2)
     c1.download_button("FHIR 번들 다운로드 (.json)", json.dumps(bundle, ensure_ascii=False, indent=2),
                        file_name=f"{case.case_id}_bundle.json", mime="application/fhir+json",
-                       use_container_width=True)
-    if c2.button("➕ 새 케이스", type="primary", use_container_width=True):
+                       width="stretch")
+    if c2.button("➕ 새 케이스", type="primary", width="stretch"):
         reset_case()
         st.rerun()
 

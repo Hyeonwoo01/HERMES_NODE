@@ -45,9 +45,9 @@ with tab_log:
                    if e["event"] in ("select", "override", "escalation")
                    else f'{e["hospital"]} → {"수용" if e["accepted"] else "거절"}'),
             "사유": e.get("override_reason") or e.get("reason") or "",
-            "사용자": e.get("user", ""), "지연(ms)": e.get("latency_ms", ""),
+            "사용자": e.get("user", ""), "지연(ms)": e.get("latency_ms"),
         } for e in ss.audit.events])
-        st.dataframe(df, hide_index=True, use_container_width=True)
+        st.dataframe(df, hide_index=True, width="stretch")
         st.download_button("감사 로그 다운로드 (.jsonl)",
                            "\n".join(json.dumps(e, ensure_ascii=False) for e in ss.audit.events),
                            file_name="synapse_h_audit.jsonl", mime="application/x-ndjson")
@@ -68,7 +68,7 @@ with tab_pilot:
         ["형평성", "연령·성별·지역·언어·질환별 성능", "설명되지 않는 격차 없음", "파트너 데이터 필요"],
         ["신뢰성", "가용성·피드 신선도", "≥99.5% 가동; 피드 신선도 100% 표시", "100% 표시"],
         ["사람의 통제", "최종 결정 확인", "100% 사람 확인; 오버라이드 사유 기록", "강제 (UI)"],
-    ], columns=["영역", "지표", "Go/no-go 임계값 (제안)", "현재 세션"]), hide_index=True, use_container_width=True)
+    ], columns=["영역", "지표", "Go/no-go 임계값 (제안)", "현재 세션"]), hide_index=True, width="stretch")
 
 with tab_card:
     st.markdown(f"""
@@ -103,7 +103,7 @@ with tab_hazard:
         ["불균등한 성능", "하위집단 평가, 공정성 제약", "재보정·제한·중단", "◻ 파트너 데이터 필요"],
         ["사이버 사고", "분리, 로깅, 백업, 대응 플레이북", "격리; 수동 워크플로로 안전 실패", "◻ 운영 단계"],
         ["시스템 불가용", "수동 대체 절차 문서화; 가동 모니터링", "기존 전화/공공 워크플로로 복귀", "◻ 운영 단계"],
-    ], columns=["위해", "예방/감지", "안전한 대응", "데모 구현"]), hide_index=True, use_container_width=True)
+    ], columns=["위해", "예방/감지", "안전한 대응", "데모 구현"]), hide_index=True, width="stretch")
     st.markdown('<div class="sh-boundary"><b>GOVERNANCE PROMISE</b> — 시스템은 불확실해도 됩니다. 불완전하거나 '
                 "오래된 데이터로 만든 정밀해 보이는 점수보다, 눈에 보이는 abstention과 에스컬레이션이 더 안전하고 "
                 "신뢰할 수 있습니다.</div>", unsafe_allow_html=True)

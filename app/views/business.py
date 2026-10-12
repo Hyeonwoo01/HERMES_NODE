@@ -33,7 +33,7 @@ for col, r, color in zip(cols, rows, SERIES):
                       f"{r['지역 지휘']} 지역 · {r['고급 노드']} 고급 · {r['기본 노드']} 기본"),
                  unsafe_allow_html=True)
 st.write("")
-st.dataframe(df.round(2), hide_index=True, use_container_width=True)
+st.dataframe(df.round(2), hide_index=True, width="stretch")
 st.caption("TAM = 17개 광역 지자체 × 지휘 라이선스 + 181개 권역·지역센터 × 고급 노드 + 233개 지역기관 × 기본 노드. "
            "일회성 통합·컨설팅·성과 기반 수수료·해외 매출 제외.")
 
@@ -45,7 +45,7 @@ st.dataframe(pd.DataFrame([
     ["Advanced node", "권역/지역 응급의료센터", "₩60M / 년", "전체 오케스트레이션, 준비도 모델, 고급 SLA"],
     ["Regional command", "지자체 / 상황실", "₩250M / 년", "지역 최적화, 거버넌스, 시스템 KPI"],
     ["통합 패키지", "병원", "₩15M 일회성", "EMR/FHIR/API 어댑터, 인터페이스 검증"],
-], columns=["상품", "구매자", "계획 가격", "포함 가치"]), hide_index=True, use_container_width=True)
+], columns=["상품", "구매자", "계획 가격", "포함 가치"]), hide_index=True, width="stretch")
 
 st.markdown("#### 5개년 기본 시나리오 (예시)")
 scale = st.slider("판매 도입 속도 (기본 대비)", 0.4, 1.4, 1.0, 0.05,
@@ -71,8 +71,9 @@ fig.add_scatter(x=base["연도"], y=base["EBITDA"], name="EBITDA", mode="lines+m
                 hovertemplate="%{x} EBITDA ₩%{y:.2f}B<extra></extra>")
 fig.add_hline(y=0, line_color="#c3c2b7")
 fig.update_layout(barmode="group", yaxis_title="₩ Billion", title=f"영업 손익분기: {be}")
-st.plotly_chart(plotly_layout(fig, height=360), use_container_width=True)
-st.dataframe(base.round(2), hide_index=True, use_container_width=True)
+st.plotly_chart(plotly_layout(fig, height=360), width="stretch",
+                config={"displayModeBar": False})
+st.dataframe(base.round(2), hide_index=True, width="stretch")
 st.caption("운영비는 고정으로 두고 매출·COGS만 도입 속도에 비례시킨 단순 모델입니다. 자금조달·세금·운전자본 제외.")
 
 st.markdown("#### 12개월 ₩70M 사용 계획")
@@ -84,4 +85,5 @@ fig = go.Figure(go.Bar(x=funds["금액(₩M)"], y=funds["항목"], orientation="
                        hovertemplate="%{y}: ₩%{x}M<extra></extra>", text=funds["금액(₩M)"].map(lambda v: f"₩{v}M"),
                        textposition="outside"))
 fig.update_yaxes(autorange="reversed")
-st.plotly_chart(plotly_layout(fig, height=300), use_container_width=True)
+st.plotly_chart(plotly_layout(fig, height=300), width="stretch",
+                config={"displayModeBar": False})

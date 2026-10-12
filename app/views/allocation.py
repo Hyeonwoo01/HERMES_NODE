@@ -30,7 +30,7 @@ df = pd.DataFrame([{
     "sex": c.sex, "onset_min": c.onset_min, "sbp": c.sbp, "hr": c.hr, "spo2": c.spo2,
 } for c in ss.concurrent])
 edited = st.data_editor(
-    df, num_rows="dynamic", hide_index=True, use_container_width=True, key="cases_editor",
+    df, num_rows="dynamic", hide_index=True, width="stretch", key="cases_editor",
     column_config={
         "case_id": "케이스",
         "origin_id": st.column_config.SelectboxColumn("의뢰 기관", options=list(ss.origins), required=True),
@@ -86,13 +86,13 @@ for a, b in zip(g.assignments, gr.assignments):
     rows.append({
         "케이스": a.case.case_id, "경로": PATHWAYS[a.case.pathway].label.split(" (")[0], "KTAS": a.case.ktas,
         "전역 최적 배정": a.hospital.name if a.hospital else "🚨 의료지도",
-        "개인 순위": a.individual_rank or "—", "ETA(분)": round(a.travel_min, 1) if a.travel_min else "—",
+        "개인 순위": a.individual_rank, "ETA(분)": round(a.travel_min, 1) if a.travel_min else None,
         "탐욕 배정": b.hospital.name if b.hospital else "🚨 의료지도",
-        "탐욕 개인 순위": b.individual_rank or "—",
+        "탐욕 개인 순위": b.individual_rank,
         "변경": "↔" if (a.hospital and b.hospital and a.hospital.id != b.hospital.id) or
                      (bool(a.hospital) != bool(b.hospital)) else "",
     })
-st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 st.caption("개인 순위 = 그 환자 혼자였다면 매겨졌을 순위. 전역 최적화는 일부 저위험 환자에게 2순위를 배정해 "
            "고위험 환자의 1순위를 지킬 수 있습니다. 모든 배정은 의료진 확인 전까지 '제안'입니다.")
 
@@ -109,7 +109,8 @@ fig.add_bar(x=names, y=cnt_r, name="선착순 탐욕", marker_color=SERIES[1], m
 fig.add_scatter(x=names, y=beds, mode="markers", name="가용 병상", marker=dict(symbol="line-ew-open", size=28,
                 color="#52514e", line=dict(width=2)), hovertemplate="%{x}<br>가용 병상 %{y}<extra></extra>")
 fig.update_layout(barmode="group", yaxis_title="배정 환자 수", title="병원별 배정 (용량 대비)")
-st.plotly_chart(plotly_layout(fig, height=360), use_container_width=True)
+st.plotly_chart(plotly_layout(fig, height=360), width="stretch",
+                config={"displayModeBar": False})
 
 if st.button("💾 편집한 케이스 목록 저장 (지역 상황실에 반영)"):
     ss.concurrent = cases
