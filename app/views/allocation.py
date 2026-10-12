@@ -17,10 +17,15 @@ st.markdown(
     "(제안서 §1.4 *Local optimization*). 동시 케이스는 병상 용량과 부하 집중(공정성) 벌점을 고려한 "
     "**할당 문제**로 풉니다. 임상 적격성(필수 역량)이 먼저 적용되고, 고위험(낮은 KTAS) 환자의 지연이 "
     "더 큰 비용으로 계산되어 고위험 환자를 불리하게 만들지 않습니다.")
-st.latex(r"\min_x \sum_p \sum_h x_{ph}\,\alpha_p\,[w_1T_{ph}+w_2C_{h}+w_3(1-A_{h})R+w_4L_h+w_5U_h]"
-         r" + \lambda F(x)")
-st.caption("α_p: 중증도 가중치 (KTAS 1→1.6 … KTAS 5→0.7) · F(x) = Σ_h n_h(n_h−1)/2 (같은 병원 집중 벌점) · "
-           "제약: 환자당 1개 목적지 또는 의료지도, 역량 충족, 병상 용량, 사람의 최종 확인")
+st.markdown(
+    '<div class="sh-why"><span class="sh-eyebrow">How it decides</span>'
+    "<b>1.</b> 필요한 치료 역량과 빈 병상이 있는 병원만 후보로 남깁니다.<br>"
+    "<b>2.</b> 이동 시간, 승인 대기, 거절 위험, 병원 혼잡도, 데이터 불확실성을 합쳐 환자별 부담을 계산합니다.<br>"
+    "<b>3.</b> 중증도가 높은 환자(낮은 KTAS)의 지연을 더 무겁게 계산해 먼저 좋은 병원을 배정받게 합니다.<br>"
+    "<b>4.</b> 한 병원에 환자가 몰리면 추가 부담을 붙여 부하를 고르게 나눕니다.<br>"
+    "<b>5.</b> 모든 환자의 부담 합이 가장 작은 조합을 찾고, 받을 곳이 없는 환자는 의료지도로 넘깁니다. "
+    "최종 결정은 의료진이 확인합니다.</div>", unsafe_allow_html=True)
+st.write("")
 
 st.markdown("#### 동시 대기 케이스 (의료진 확인 완료 · 도착 순)")
 pw = list(PATHWAYS)
@@ -54,7 +59,8 @@ for i, row in enumerate(edited.to_dict("records")):
 for e in errors:
     st.error(e)
 
-lam = st.slider("공정성 벌점 λ (같은 병원으로의 부하 집중)", 0.0, 15.0, 3.0, 0.5)
+lam = st.slider("한 병원 쏠림 방지 강도", 0.0, 15.0, 3.0, 0.5,
+                help="값이 클수록 같은 병원에 여러 환자가 몰리는 것을 더 강하게 피합니다. 0이면 쏠림을 고려하지 않습니다.")
 if not cases:
     st.info("케이스를 한 개 이상 입력하세요.")
     st.stop()
