@@ -1,14 +1,15 @@
 """SYNAPSE-H mobile — one screen for phones and tablets.
 
-Enter the referral data, tap once, get ranked destinations. No settings:
-default weights, controlled-pilot mode and the current Korean time are used.
-The clinician still picks the hospital and records the response.
+Enter the referral data, confirm what was extracted, get ranked destinations.
+No settings: default weights, controlled-pilot mode and the current Korean
+time are used. Extracted fields are never ranked until a clinician confirms
+them, and the clinician still picks the hospital and records the response.
 
 Run from the repository root:  streamlit run application_mobile.py
 """
 
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -85,7 +86,7 @@ header("응급 전원 추천", "Mobile")
 # ---------------------------------------------------------------------------
 def make_case(values: dict, note: str, red_flags: list[str]):
     try:
-        case = build_case("pending", M["origin_id"], values, note, red_flags, "mobile user")
+        case = build_case("pending", M["origin_id"], values, note, red_flags, "mobile clinician (confirmed)")
     except ValueError as e:
         return None, str(e)
     ss.m_seq += 1
@@ -93,31 +94,22 @@ def make_case(values: dict, note: str, red_flags: list[str]):
     return case, ""
 
 
-def missing_form(values: dict, need: list[str]) -> dict | None:
-    """Ask only for the fields the note did not provide (or provided out of range)."""
-    st.warning("아래 항목을 채우면 바로 추천합니다.")
-    with st.form("missing"):
-        out = dict(values)
-        for name in need:
-            label = FIELD_LABELS[name]
-            if name == "pathway":
-                keys = list(PATHWAYS)
-                out[name] = st.selectbox(label, keys, index=None, format_func=lambda k: PATHWAYS[k].label,
-                                         placeholder="선택")
-            elif name == "sex":
-                out[name] = st.selectbox(label, ["male", "female"], index=None,
-                                         format_func=lambda s: {"male": "남", "female": "여"}[s], placeholder="선택")
-            elif name == "ktas":
-                out[name] = st.selectbox(label, [1, 2, 3, 4, 5], index=None, placeholder="선택")
-            else:
-                out[name] = st.number_input(label, value=None, step=1)
-        if st.form_submit_button("추천 받기", type="primary", width="stretch"):
-            return out
-    return None
+STATUS_TAG = {"extracted": "✓ 원문에서 추출", "missing": "⚠ 입력 필요", "invalid": "⛔ 범위 밖 · 수정 필요"}
+
+
+def highlight(note: str, fields) -> str:
+    spans = sorted({f.span for f in fields.values() if f.span and f.span[1] > f.span[0]})
+    out, pos = [], 0
+    for a, b in spans:
+        if a < pos:
+            continue
+        out += [esc(note[pos:a]), f'<mark class="ev">{esc(note[a:b])}</mark>']
+        pos = b
+    return "".join(out) + esc(note[pos:])
 
 
 def input_view():
-    st.markdown("**환자 정보를 넣으면 바로 받을 수 있는 병원을 추천합니다.**")
+    st.markdown("**환자 정보를 넣고, 추출된 내용을 확인하면 받을 수 있는 병원을 추천합니다.**")
     origin_ids = list(ss.m_origins)
     M["origin_id"] = st.selectbox("의뢰 기관", origin_ids,
                                   index=origin_ids.index(M.get("origin_id", "O1")),
@@ -128,35 +120,17 @@ def input_view():
         sample = st.pills("예시 불러오기", ["stroke", "trauma", "pediatric", "stemi"],
                           format_func=lambda k: SCEN[k]["title"].split(" (")[0], key="sample")
         if sample and M.get("sample") != sample:
-            M.update(sample=sample, note=SCEN[sample]["note"], origin_id=SCEN[sample]["origin"], pending=None)
+            M.update(sample=sample, note=SCEN[sample]["note"], origin_id=SCEN[sample]["origin"])
             st.rerun()
         note = st.text_area("의뢰 메모", M.get("note", ""), height=150,
                             placeholder="예) 72세 남성, 안면마비, 편마비. 발생 40분 전. BP 160/90, HR 92, "
                                         "SpO2 96%. Pre-KTAS 2.")
-        if st.button("🔎 추천 받기", type="primary", width="stretch"):
+        if st.button("🔎 정보 추출", type="primary", width="stretch"):
             if not note.strip():
                 st.error("의뢰 메모를 입력하세요.")
             else:
-                res = RuleBasedExtractor().extract(note)
-                values = {k: (f.value if f.status == "extracted" else None) for k, f in res.fields.items()}
-                M.update(note=note, pending={"values": values, "red_flags": res.red_flags,
-                                             "need": res.missing + [k for k in res.invalid if k in REQUIRED_FIELDS]})
-                if res.can_proceed:
-                    case, err = make_case(values, note, res.red_flags)
-                    if case:
-                        go("result", case=case, refused=set(), contacts=[], pending=None)
-                    M["pending"] = None
-                    st.error(err)
-                else:
-                    st.rerun()
-        pending = M.get("pending")
-        if pending:
-            filled = missing_form(pending["values"], pending["need"])
-            if filled is not None:
-                case, err = make_case(filled, M.get("note", ""), pending["red_flags"])
-                if case:
-                    go("result", case=case, refused=set(), contacts=[], pending=None)
-                st.error(err)
+                ss.m_seq += 1
+                go("confirm", note=note, extraction=RuleBasedExtractor().extract(note), draft_id=ss.m_seq)
 
     with tab_form:
         with st.form("direct"):
@@ -173,13 +147,66 @@ def input_view():
             sbp = c1.number_input("수축기 혈압", value=None, step=1)
             hr = c2.number_input("맥박", value=None, step=1)
             spo2 = c3.number_input("SpO₂ %", value=None, step=1)
-            if st.form_submit_button("🔎 추천 받기", type="primary", width="stretch"):
+            if st.form_submit_button("✅ 입력 확인 · 추천 보기", type="primary", width="stretch"):
                 values = dict(age=age, sex=sex, pathway=pathway, ktas=ktas, onset_min=onset,
                               sbp=sbp, hr=hr, spo2=spo2)
                 case, err = make_case(values, "", [])
                 if case:
                     go("result", case=case, refused=set(), contacts=[])
                 st.error(err)
+
+
+# ---------------------------------------------------------------------------
+# Confirm: the clinician checks every extracted field before ranking runs
+# ---------------------------------------------------------------------------
+def confirm_view():
+    res = M["extraction"]
+    f = res.fields
+    st.markdown('<span class="sh-eyebrow">의료진 확인</span>', unsafe_allow_html=True)
+    st.markdown("**메모에서 읽은 값을 원문과 대조해 확인하세요.** 확인한 값만 추천에 사용합니다.")
+    st.markdown(f'<div class="sh-case">{highlight(res.note, f)}</div>', unsafe_allow_html=True)
+    if res.red_flags:
+        st.warning("🚩 " + ", ".join(res.red_flags))
+    need = res.missing + [k for k in res.invalid if k in REQUIRED_FIELDS]
+    if need:
+        st.warning("⚠ 표시된 항목을 채우거나 고쳐 주세요: " + ", ".join(FIELD_LABELS[k] for k in need))
+
+    def lab(name):
+        return f"{FIELD_LABELS[name]} · {STATUS_TAG[f[name].status]}"
+
+    d = M["draft_id"]
+    with st.form(f"confirm_{d}"):
+        c1, c2 = st.columns(2)
+        age = c1.number_input(lab("age"), value=f["age"].value, step=1, key=f"age_{d}")
+        sex = c2.selectbox(lab("sex"), ["male", "female"],
+                           index=["male", "female"].index(f["sex"].value) if f["sex"].value else None,
+                           format_func=lambda x: {"male": "남", "female": "여"}[x], placeholder="선택", key=f"sex_{d}")
+        keys = list(PATHWAYS)
+        pathway = st.selectbox(lab("pathway"), keys, index=keys.index(f["pathway"].value) if f["pathway"].value else None,
+                               format_func=lambda k: PATHWAYS[k].label, placeholder="선택", key=f"pw_{d}")
+        c1, c2 = st.columns(2)
+        ktas = c1.selectbox(lab("ktas"), [1, 2, 3, 4, 5],
+                            index=f["ktas"].value - 1 if f["ktas"].status == "extracted" else None,
+                            placeholder="선택", key=f"ktas_{d}")
+        onset = c2.number_input(lab("onset_min"), value=f["onset_min"].value, step=1, key=f"onset_{d}")
+        c1, c2, c3 = st.columns(3)
+        sbp = c1.number_input(lab("sbp"), value=f["sbp"].value, step=1, key=f"sbp_{d}")
+        hr = c2.number_input(lab("hr"), value=f["hr"].value, step=1, key=f"hr_{d}")
+        spo2 = c3.number_input(lab("spo2"), value=f["spo2"].value, step=1, key=f"spo2_{d}")
+        if onset is not None:
+            st.caption(f"⏱️ 발병/최종정상 시각 ≈ {(now_kst() - timedelta(minutes=onset)):%H:%M} (지금 {now_kst():%H:%M})")
+        ok = st.form_submit_button("✅ 원문과 맞습니다 · 추천 보기", type="primary", width="stretch")
+    if ok:
+        values = dict(age=age, sex=sex, pathway=pathway, ktas=ktas, onset_min=onset, sbp=sbp, hr=hr, spo2=spo2,
+                      dbp=f["dbp"].value if f["dbp"].status == "extracted" else None,
+                      rr=f["rr"].value if f["rr"].status == "extracted" else None,
+                      gcs=f["gcs"].value if f["gcs"].status == "extracted" else None)
+        case, err = make_case(values, res.note, res.red_flags)
+        if case:
+            go("result", case=case, refused=set(), contacts=[])
+        st.error(err)
+    if st.button("← 메모 다시 쓰기", width="stretch"):
+        go("input")
 
 
 # ---------------------------------------------------------------------------
@@ -300,6 +327,6 @@ def done_view():
         st.rerun()
 
 
-{"input": input_view, "result": result_view, "contact": contact_view, "done": done_view}[M["stage"]]()
+{"input": input_view, "confirm": confirm_view, "result": result_view, "contact": contact_view, "done": done_view}[M["stage"]]()
 
 st.caption("합성 데이터 데모입니다. 실제 환자·병원 정보가 아니며, 추천은 참고용이고 최종 결정은 의료진이 합니다.")
