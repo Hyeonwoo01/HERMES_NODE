@@ -1,0 +1,207 @@
+{
+  "description": "Synthetic digital twin: nearest-appropriate vs Synapse-H (paired episodes). No patient data; not clinical validation.",
+  "code_commit": "fdbd148",
+  "environment": {
+    "python": "3.13.16",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1"
+  },
+  "params": {
+    "n_episodes": 20000,
+    "seed": 2026,
+    "model_error": 0.3,
+    "report_sd": 0.05,
+    "stale_report_sd": 0.2,
+    "stale_prob": 0.15,
+    "first_contact_min": 3.0,
+    "failed_contact_min": 6.0,
+    "escalation_min": 10.0,
+    "travel_surface": "urban",
+    "congestion_mean": 0.0,
+    "congestion_sd": 0.5,
+    "latent_noise": 0.6,
+    "w_travel": 1.0,
+    "w_rejection": 1.0,
+    "w_load": 0.5,
+    "w_uncertainty": 1.0,
+    "retry_penalty_min": 12.0
+  },
+  "single_run": [
+    {
+      "metric": "first_accept",
+      "Nearest appropriate": 0.64145,
+      "Synapse-H": 0.6993,
+      "Paired change": "+5.8 %p",
+      "kind": "pct"
+    },
+    {
+      "metric": "attempts",
+      "Nearest appropriate": 1.505,
+      "Synapse-H": 1.4283,
+      "Paired change": "-5.1%",
+      "kind": "mean"
+    },
+    {
+      "metric": "confirmation",
+      "Nearest appropriate": 6.7716,
+      "Synapse-H": 6.3114,
+      "Paired change": "-6.8%",
+      "kind": "mean"
+    },
+    {
+      "metric": "confirmation_p90",
+      "Nearest appropriate": 15.0,
+      "Synapse-H": 15.0,
+      "Paired change": "+0.0 분",
+      "kind": "p90"
+    },
+    {
+      "metric": "travel",
+      "Nearest appropriate": 16.503133157811455,
+      "Synapse-H": 16.820081943974795,
+      "Paired change": "+1.9%",
+      "kind": "mean"
+    },
+    {
+      "metric": "conf_plus_travel",
+      "Nearest appropriate": 23.274733157811454,
+      "Synapse-H": 23.131481943974794,
+      "Paired change": "-0.6%",
+      "kind": "mean"
+    },
+    {
+      "metric": "risk_adjusted",
+      "Nearest appropriate": 24.692401151698874,
+      "Synapse-H": 24.540531873636816,
+      "Paired change": "-0.6%",
+      "kind": "mean"
+    },
+    {
+      "metric": "escalated",
+      "Nearest appropriate": 0.04635,
+      "Synapse-H": 0.04635,
+      "Paired change": "+0.0 %p",
+      "kind": "pct"
+    }
+  ],
+  "replicates": [
+    {
+      "seed": 2026,
+      "first_accept": 0.05785000000000007,
+      "attempts": -0.07669999999999999,
+      "confirmation": -0.4602000000000004,
+      "travel": 0.31694878616334066,
+      "conf_plus_travel": -0.14325121383665973
+    },
+    {
+      "seed": 2027,
+      "first_accept": 0.05454999999999999,
+      "attempts": -0.07699999999999996,
+      "confirmation": -0.46199999999999974,
+      "travel": 0.3004310865089792,
+      "conf_plus_travel": -0.1615689134910241
+    },
+    {
+      "seed": 2028,
+      "first_accept": 0.053749999999999964,
+      "attempts": -0.07325000000000004,
+      "confirmation": -0.4394999999999998,
+      "travel": 0.3178280930463515,
+      "conf_plus_travel": -0.12167190695364738
+    },
+    {
+      "seed": 2029,
+      "first_accept": 0.05179999999999996,
+      "attempts": -0.07250000000000001,
+      "confirmation": -0.4350000000000005,
+      "travel": 0.3103567227953228,
+      "conf_plus_travel": -0.12464327720467594
+    },
+    {
+      "seed": 2030,
+      "first_accept": 0.053200000000000025,
+      "attempts": -0.07299999999999995,
+      "confirmation": -0.4379999999999997,
+      "travel": 0.31346113291572664,
+      "conf_plus_travel": -0.12453886708427575
+    },
+    {
+      "seed": 2031,
+      "first_accept": 0.05235000000000001,
+      "attempts": -0.07079999999999997,
+      "confirmation": -0.4248000000000003,
+      "travel": 0.3044826370858438,
+      "conf_plus_travel": -0.12031736291415385
+    },
+    {
+      "seed": 2032,
+      "first_accept": 0.0532999999999999,
+      "attempts": -0.07079999999999997,
+      "confirmation": -0.4248000000000003,
+      "travel": 0.3122019683166002,
+      "conf_plus_travel": -0.11259803168340099
+    },
+    {
+      "seed": 2033,
+      "first_accept": 0.05680000000000007,
+      "attempts": -0.07624999999999993,
+      "confirmation": -0.4574999999999996,
+      "travel": 0.3108541087926149,
+      "conf_plus_travel": -0.1466458912073847
+    },
+    {
+      "seed": 2034,
+      "first_accept": 0.05910000000000004,
+      "attempts": -0.0805499999999999,
+      "confirmation": -0.48329999999999984,
+      "travel": 0.30785093734986546,
+      "conf_plus_travel": -0.17544906265014149
+    },
+    {
+      "seed": 2035,
+      "first_accept": 0.05615000000000003,
+      "attempts": -0.07640000000000002,
+      "confirmation": -0.45839999999999925,
+      "travel": 0.31241906707105827,
+      "conf_plus_travel": -0.14598093292894276
+    }
+  ],
+  "replicate_ci95": [
+    {
+      "metric": "first_accept",
+      "mean_diff": 0.054885,
+      "ci_low": 0.053124319968715666,
+      "ci_high": 0.05664568003128434,
+      "n_seeds": 10
+    },
+    {
+      "metric": "attempts",
+      "mean_diff": -0.07472499999999997,
+      "ci_low": -0.07697520211942532,
+      "ci_high": -0.07247479788057462,
+      "n_seeds": 10
+    },
+    {
+      "metric": "confirmation",
+      "mean_diff": -0.4483499999999999,
+      "ci_low": -0.461851212716552,
+      "ci_high": -0.43484878728344784,
+      "n_seeds": 10
+    },
+    {
+      "metric": "travel",
+      "mean_diff": 0.3106834540045703,
+      "ci_low": 0.30687527152985383,
+      "ci_high": 0.3144916364792868,
+      "n_seeds": 10
+    },
+    {
+      "metric": "conf_plus_travel",
+      "mean_diff": -0.13766654599543066,
+      "ci_low": -0.15218471287888127,
+      "ci_high": -0.12314837911198004,
+      "n_seeds": 10
+    }
+  ]
+}
