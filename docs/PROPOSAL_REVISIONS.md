@@ -122,7 +122,7 @@ Table 9는 이전 프로토타입의 수치입니다. 현재 코드에서 재현
 |---|---|---|
 | predicted acceptance probability | acceptance **score** (synthetic coefficients, not calibrated) | 실제 수용 빈도로 보정되지 않음 |
 | FHIR-ready platform | prototype that emits FHIR R5-shaped bundles | 공식 검증·KR Core 미적용 |
-| two interface prototypes | deployed web and mobile prototypes on synthetic data (links) | 실제 배포 앱이 있음 — 링크를 넣을 것 |
+| two interface prototypes | deployed web and mobile prototypes on synthetic data: https://hermesnode.streamlit.app/ · https://synapse-h-mobile.streamlit.app/ | 실제 배포 앱이 있음 |
 | Controlled pilot (앱 화면) | synthetic demo | 실제 기관 파일럿이 아님 (앱 수정 완료) |
 | NLP extraction | rule-based extraction with negation/history handling and mandatory clinician confirmation | LLM이 아님 |
 

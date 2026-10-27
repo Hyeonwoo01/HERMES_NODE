@@ -7,7 +7,7 @@
 > ⚠️ **합성 데이터 데모입니다.** 병원·환자·수용 점수는 모두 가상 예시이며 실제 병원 데이터로 검증되지 않았습니다.
 > 실제 환자 정보를 입력하거나 실제 진료 결정에 사용하지 마세요.
 
-- **Live demo:** _(배포 주소 입력 예정 — 웹 앱)_ · _(배포 주소 입력 예정 — 모바일 앱)_
+- **Live demo:** [웹 앱 (7개 화면)](https://hermesnode.streamlit.app/) · [모바일·태블릿 앱](https://synapse-h-mobile.streamlit.app/) — 한동안 접속이 없으면 잠들어 있으니 깨우기 버튼을 누르고 30초쯤 기다리세요
 - **사업계획서:** IYEO 2026 University Division, SYNAPSE-H Business Proposal (Hyeonwoo An)
 - **문서:** [아키텍처·데이터 경계](docs/ARCHITECTURE.md) · [기술 의사결정 기록](docs/DECISIONS.md) ·
   [현장 사용성 검증 계획](docs/VALIDATION_PLAN.md) · [사업계획서 수정안](docs/PROPOSAL_REVISIONS.md)
