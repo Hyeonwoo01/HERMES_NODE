@@ -9,7 +9,7 @@
 
 - **Live demo:** [웹 앱 (7개 화면)](https://hermesnode.streamlit.app/) · [모바일·태블릿 앱](https://synapse-h-mobile.streamlit.app/) — 한동안 접속이 없으면 잠들어 있으니 깨우기 버튼을 누르고 30초쯤 기다리세요
 - **사업계획서:** IYEO 2026 University Division, SYNAPSE-H Business Proposal (Hyeonwoo An)
-- **문서:** [아키텍처·데이터 경계](docs/ARCHITECTURE.md) · [기술 의사결정 기록](docs/DECISIONS.md) ·
+- **문서:** [프로젝트 요약 (3분)](docs/PROJECT_SUMMARY.md) · [아키텍처·데이터 경계](docs/ARCHITECTURE.md) · [기술 의사결정 기록](docs/DECISIONS.md) ·
   [현장 사용성 검증 계획](docs/VALIDATION_PLAN.md) · [사업계획서 수정안](docs/PROPOSAL_REVISIONS.md)
 
 | 웹 앱 — 전원 오케스트레이터 | 모바일 앱 — 확인 → 추천 → 통화 결과 기록 |
