@@ -86,4 +86,4 @@ Hyeonwoo An · 개인 프로젝트 · 2026 · [웹 앱](https://hermesnode.strea
   - 실제 데이터 없이 "확률"이라고 부르지 않기로 함
   - 고위험 환자의 원거리 배정을 의료지도 확인으로 넘기도록 안전 규칙 강화
 
-**더 보기:** [README](../README.md) · [면접 대비](INTERVIEW_PREP.md) · [아키텍처](ARCHITECTURE.md) · [기술 의사결정](DECISIONS.md) · [사업계획서 수정 내역](PROPOSAL_REVISIONS.md)
+**더 보기:** [README](../README.md) · [아키텍처](ARCHITECTURE.md) · [기술 의사결정](DECISIONS.md) · [사업계획서 수정 내역](PROPOSAL_REVISIONS.md)
