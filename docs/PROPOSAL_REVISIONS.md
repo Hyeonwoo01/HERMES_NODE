@@ -1,5 +1,7 @@
 # 사업계획서 수정안 (Business Proposal, 2026-07-24 판 기준)
 
+> 이 수정안은 **사업계획서 v2 (2026-10-27)** 에 모두 반영되었습니다. 변경 내역은 v2의 Appendix D에 있습니다.
+
 검토 보고서(2026-10-27)의 지적을 반영해 PDF에 그대로 옮길 수 있는 문구와 표를 정리했습니다.
 숫자는 이 저장소의 코드(`synapse_h/finance.py`, `scripts/run_twin_experiment.py`)로 다시 계산할 수 있습니다.
 
@@ -90,13 +92,21 @@ TAM 계산(17 × ₩250M + 181 × ₩60M + 233 × ₩24M = ₩20.70B)은 산술�
 
 | 위치 | 현재 문구 | 수정 문구 |
 |---|---|---|
-| p.29 §8.1 | "Korea's Digital Medical Products Act took effect on 21 February 2025." | "Korea's Digital Medical Products Act (enacted 23 January 2024) took effect on **24 January 2025**, together with its enforcement decree." — 2025-02-21은 후속 개정 기록이므로 국가법령정보센터 연혁에서 확인 후 별도로 표기 |
-| p.29 §8.1 뒤 | — | "MFDS issued the *guideline for approval and review of digital medical device software for professional use* on 30 September 2026, a guideline on change-management plans for AI digital medical devices in June 2026, and on 27 July 2026 clarified when clinical-trial data for software devices can be waived or replaced. The classification plan (months 4–8) will be checked against these documents." |
+| p.29 §8.1 | "Korea's Digital Medical Products Act took effect on 21 February 2025." | "Korea's Digital Medical Products Act (Act No. 20139) was enacted on 23 January 2024 and took effect on **24 January 2025** together with its enforcement decree; Articles 33–35 took effect on 24 January 2026." — 2025-02-21은 이 법의 개정이 아니라 다른 법률(법률 제20331호) 개정에 따른 타법개정 시행일입니다. 원래 [17] 링크(lsiSeq=260593)가 그 개정이 반영된 판을 가리켜 생긴 혼동일 가능성이 높아, 링크를 법령 고정 주소(law.go.kr/법령/디지털의료제품법)로 바꿉니다 |
+| p.29 §8.1 뒤 | — | "On 26 June 2026 MFDS issued a guideline on approval and review of change-management plans for digital medical devices, which lets pre-approved post-market changes such as planned AI model updates proceed without a new review; on 27 July 2026 it amended the approval and review regulation (MFDS Notice No. 2026-54) to specify when clinical-trial data for digital medical device software may be waived or deemed partly submitted; and on 30 September 2026 it issued a guideline for professional-use digital medical device software — software patients use under a professional's diagnosis or supervision. Synapse-H is clinician-facing, so the last guideline matters mainly for how MFDS scopes intended use and required warnings." |
 | p.12 §3.1, Table 25 | "FHIR is the interoperability spine … versioned FHIR interfaces" | "The prototype emits FHIR R5-shaped bundles that pass a structural self-check. Before any live connection they will be validated with the official FHIR validator and mapped to the **KR Core** profiles and code systems published by the Korea Health Information Service, plus the receiving institution's implementation guide." |
-| Table 25 "Adaptive model update" | "approved change-control plan" | "change-control plan aligned with MFDS's 2026 guideline on change-management plans for AI digital medical devices" |
+| Table 25 "Adaptive model update" | "approved change-control plan" | "pre-approved change-management plan (MFDS guideline, 26 June 2026); monitoring" |
 
-출처: 법무법인 세종 뉴스레터, 데일리팜, KDI 경제교육·정보센터, 아콤뉴스 보도 (2025–2026). 제출 전 국가법령정보센터와
-식약처 누리집 원문으로 날짜와 명칭을 다시 확인하세요.
+확인 결과 (2026-10-27, 원문 인용 검색 기준. 이 세션에서는 국가법령정보센터·식약처 사이트에 직접 접속할 수 없었습니다):
+
+| 항목 | 확인 내용 | 출처 |
+|---|---|---|
+| 디지털의료제품법 | 법률 제20139호, 2024.1.23 제정, 2025.1.24 시행, 제33–35조는 2026.1.24 시행. 2025.2.21은 법률 제20331호 개정에 따른 타법개정 | 국가법령정보센터 법령 본문·연혁, LBOX |
+| 변경관리 계획서 가이드라인 | 2026.6.26 제정 「디지털의료기기 변경관리 계획서 허가·심사 가이드라인」 | 식약처 보도참고 (재게시), 메디컬타임즈 |
+| 허가·심사 규정 개정 | 고시 제2026-54호, 2026.7.27 시행, 소프트웨어 임상시험 자료 면제·간주 기준 구체화 | 국가법령정보센터 행정규칙, 데일리팜, 법률신문 |
+| 전문가용 SW 가이드라인 | 2026.9.30 제정. 의료인의 진단·지시·감독 아래 **환자가 쓰는** 소프트웨어 대상 | 식약처 보도참고, 복지타임즈 등 |
+
+제출 전에는 국가법령정보센터와 식약처 누리집 원문에서 한 번 더 확인하세요.
 
 ## 합성 시뮬레이션 표 교체 (p.16, Table 9)
 
@@ -131,11 +141,10 @@ Table 9는 이전 프로토타입의 수치입니다. 현재 코드에서 재현
 PDF에서 링크 텍스트가 모두 "Official/source page"로 보여 출력본에서 출처를 알 수 없습니다. 각 항목을
 `기관/저자. 문서명. 발행처, 발행일. DOI 또는 URL. (접속일)` 형식으로 바꿉니다. 예:
 
-- (저자명 확인 필요). *Operation of national coordinating service for interhospital transfer from emergency departments:
-  experience and implications from Korea.* BMC Emergency Medicine, 2023. doi:10.1186/s12873-023-00782-1
-- 국가법령정보센터. 디지털의료제품법 (법률, 2024.1.23. 제정, 2025.1.24. 시행). https://www.law.go.kr (2026-10-27 접속)
+- Min HS, Sung HK, Choi G, Sung H, Lee M, Kim SJ, Ko E. *Operation of national coordinating service for interhospital transfer from emergency departments:
+  experience and implications from Korea.* BMC Emergency Medicine. 2023 (published 10 Feb 2023). doi:10.1186/s12873-023-00782-1
+- 국가법령정보센터. 디지털의료제품법 (법률 제20139호, 2024.1.23. 제정, 2025.1.24. 시행). https://www.law.go.kr/법령/디지털의료제품법 (2026-10-27 접속)
 
-(BMC 논문의 저자 표기는 원문에서 확인해 채워 넣으세요.)
 
 ## 기여도 표기 (p.34, §10)
 
