@@ -12,7 +12,8 @@ from common import (INK, SIGNAL, TERM_COLORS, esc, header, hour, next_case_id,
                     plotly_layout)
 from synapse_h.capabilities import PATHWAYS, required_capabilities
 from synapse_h.data import SCENARIOS, travel_minutes
-from synapse_h.fhir import case_bundle
+from synapse_h.fhir import case_bundle, validate_bundle
+from synapse_h.handoff import sbar
 from synapse_h.intake import (FIELD_LABELS, OPTIONAL_FIELDS, REQUIRED_FIELDS,
                               RuleBasedExtractor, build_case)
 from synapse_h.models import CAPABILITY_LABELS
@@ -32,7 +33,7 @@ def reset_case():
 
 
 def mode_label():
-    return "SHADOW MODE" if ss.mode == "shadow" else "CONTROLLED PILOT"
+    return "Synthetic demo · Shadow" if ss.mode == "shadow" else "Synthetic demo · 추천 표시"
 
 
 header("Transfer Orchestrator · 전원 오케스트레이터", mode_label())
@@ -51,6 +52,7 @@ def capture():
     oid = c2.selectbox("의뢰 기관", origin_ids, index=origin_ids.index(SCEN[sid]["origin"]),
                        format_func=lambda k: ss.origins[k].name, key=f"origin_{sid}")
     note = st.text_area("의뢰서 (Referral note)", SCEN[sid]["note"], height=130, key=f"note_{sid}")
+    st.caption("🔒 실제 환자의 이름·등록번호·연락처 등 개인정보를 입력하지 마세요. 합성 데모용 입력만 허용됩니다.")
     if st.button("🔎 구조화 추출 실행", type="primary"):
         O.update(stage="confirm", note=note, origin_id=oid, intake=RuleBasedExtractor().extract(note))
         st.rerun()
@@ -93,6 +95,8 @@ def confirm():
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
     if res.red_flags:
         st.warning("🚩 Red flags: " + ", ".join(res.red_flags))
+    if res.notes:
+        st.info("ℹ️ 문맥 판단: " + " · ".join(res.notes))
     if not res.can_proceed:
         st.error(f"**자동 추출만으로는 진행할 수 없습니다 (Abstain).** {res.abstain_message}. "
                  "아래 양식에서 원문 또는 의뢰 기관 확인 후 직접 입력하세요.")
@@ -143,6 +147,7 @@ def confirm():
             st.error(f"검증 실패: {e}")
             return
         case.case_id = next_case_id()
+        ss.audit.case_opened(case.case_id, ss.mode, ss.user)
         n_conf = sum(values[k] is not None for k in REQUIRED_FIELDS + OPTIONAL_FIELDS)
         O.update(stage="decide", case=case, refused=set(), contacts=[], revealed=False,
                  fields_confirmed=f"{n_conf}/{len(REQUIRED_FIELDS + OPTIONAL_FIELDS)}")
@@ -181,8 +186,8 @@ def option_card(o, top: bool):
         f'<div style="display:flex"><span class="sh-rank">{o.rank}</span><div>'
         f'<div class="sh-name">{esc(o.hospital.name)}<small>'
         f'{esc(o.hospital.tier)}</small></div><div class="sh-reason">{esc(o.reason)}</div>{warn}</div></div>'
-        f'<div class="sh-eta">ETA <b>{o.travel_min:.0f} min</b><br>'
-        f'예측 수용 <b>{r.accept_prob:.0%}</b> <span class="muted">({r.low:.0%}–{r.high:.0%})</span><br>'
+        f'<div class="sh-eta">모의 이동 <b>{o.travel_min:.0f}분</b><br>'
+        f'수용 점수 <b>{r.accept_prob:.0%}</b> <span class="muted">({r.low:.0%}–{r.high:.0%}) · 합성·미검증</span><br>'
         f'신뢰도 {CONFIDENCE_KO[r.confidence]} · 피드 {o.hospital.feed_age_min:.0f}분 전</div>'
         f'</div></div>')
 
@@ -246,7 +251,7 @@ def decide():
         st.caption("추천은 진료팀에 숨겨지고 결정 후에 공개됩니다. 진료에 영향을 주지 않고 실제 선택과 비교합니다.")
         options = sorted(eligible, key=lambda h: h.name)
         choice = st.radio("이송할 병원 (필수 역량 충족 병원, 이름순)", [h.id for h in options],
-                          format_func=lambda i: next(f"{h.name} · ETA {travel_minutes(origin, h):.0f}분"
+                          format_func=lambda i: next(f"{h.name} · 모의 이동 {travel_minutes(origin, h):.0f}분"
                                                      for h in options if h.id == i))
         c1, c2 = st.columns(2)
         if c1.button("내 결정 기록 후 추천 공개", type="primary"):
@@ -311,7 +316,7 @@ def decide():
             cost_chart(rec)
             st.dataframe(pd.DataFrame([{
                 "순위": o.rank, "병원": o.hospital.name, "이동(분)": o.travel_min,
-                "승인지연(분)": o.hospital.confirm_delay_min, "예측 수용": f"{o.readiness.accept_prob:.0%}",
+                "승인지연(분)": o.hospital.confirm_delay_min, "수용 점수(미검증)": f"{o.readiness.accept_prob:.0%}",
                 "부하": f"{o.hospital.load:.0%}", "불확실성": round(o.readiness.uncertainty, 2),
                 "예상 승인+이송(분)": round(o.expected_time_min, 1), "총 비용": round(o.cost, 1),
             } for o in full.options]), hide_index=True, width="stretch")
@@ -326,8 +331,11 @@ def decide():
 # ---------------------------------------------------------------------------
 def contact():
     h = next(x for x in ss.network if x.id == O["contact"])
-    st.subheader(f"📞 연락 중 — {h.name}")
-    st.caption("케이스 패킷(FHIR 번들)이 전원 데스크로 전송되었다고 가정합니다. 응답 결과를 기록하세요.")
+    st.subheader(f"📞 {h.name} — 통화 후 결과 기록")
+    st.caption("이 앱은 전화를 걸거나 병원 시스템에 연결하지 않습니다. 앱 밖에서 통화한 뒤 그 결과를 기록하세요. "
+               "아래 전원 의뢰 요약을 통화나 메시지에 그대로 사용할 수 있습니다.")
+    st.code(sbar(O["case"], ss.origins[O["case"].origin_id].name,
+                 contacts=[c["hospital"] for c in O["contacts"]] + [h.name]), language=None, wrap_lines=True)
     n_prev = len(O["contacts"])
     st.markdown(f"연락 시도 **{n_prev + 1}회차** · 추천 순위 **{O['contact_rank']}** · "
                 f"전원 데스크 평균 응답 {h.confirm_delay_min:.0f}분")
@@ -337,8 +345,8 @@ def contact():
     reason = c2.selectbox("거절 사유", REFUSAL_REASONS, label_visibility="collapsed")
     if c2.button("❌ 거절 (Refused)", width="stretch"):
         record_outcome(h, False, reason)
-    if c3.button("🎲 응답 시뮬레이션", width="stretch",
-                 help="예측 수용 확률로 응답을 무작위 생성합니다 (데모용)"):
+    if c3.button("🎲 (데모) 응답 무작위 생성", width="stretch",
+                 help="합성 수용 점수로 응답을 무작위로 만듭니다. 실제 병원 응답이 아닙니다."):
         p = predict_readiness(h, hour()).accept_prob
         accepted = bool(np.random.default_rng().random() < p)
         record_outcome(h, accepted, "" if accepted else str(np.random.default_rng().choice(REFUSAL_REASONS[:4])))
@@ -346,7 +354,7 @@ def contact():
 
 def record_outcome(h, accepted, reason=""):
     case = O["case"]
-    ss.audit.contact_outcome(case.case_id, h.id, accepted, reason)
+    ss.audit.contact_outcome(case.case_id, h.id, accepted, reason, recommended_rank=O.get("contact_rank"))
     O["contacts"].append({"hospital": h.name, "accepted": accepted, "reason": reason})
     if accepted:
         h.beds_available = max(0, h.beds_available - 1)
@@ -365,9 +373,10 @@ def done():
     case = O["case"]
     if O["outcome"] == "accepted":
         h = next(x for x in ss.network if x.id == O["destination"])
-        fails = len(O["contacts"]) - 1
-        st.success(f"### ✅ 전원 확정: {h.name}\n연락 {len(O['contacts'])}회 · 모의 승인 시간 "
-                   f"{3 + 6 * fails:.0f}분 (첫 연락 3분 + 실패당 6분) · ETA "
+        tr = next(t for t in ss.audit.traces() if t.case_id == case.case_id)
+        st.success(f"### ✅ 전원 확정: {h.name}\n연락 {len(O['contacts'])}회 · 실제 경과 "
+                   f"{tr.measured_minutes:.1f}분 (이 데모에서 확인부터 수용 기록까지) · 가정 기준 "
+                   f"{tr.assumed_minutes:.0f}분 (첫 연락 3분 + 실패당 6분) · 모의 이동 "
                    f"{travel_minutes(ss.origins[case.origin_id], h):.0f}분")
     else:
         h = None
@@ -385,8 +394,16 @@ def done():
         "사유": e.get("override_reason") or e.get("reason") or "", "모드": e.get("mode", ""),
     } for e in events]), hide_index=True, width="stretch")
 
+    st.markdown("**전원 의뢰 요약 (SBAR)** — 복사해서 수용 병원에 전달")
+    st.code(sbar(case, ss.origins[case.origin_id].name, h, [c["hospital"] for c in O["contacts"]]), language=None, wrap_lines=True)
+
     bundle = case_bundle(case, h)
-    with st.expander("🧾 FHIR R5 케이스 번들 (Patient · Observation · Condition · ServiceRequest · Task)"):
+    issues = validate_bundle(bundle)
+    with st.expander("🧾 FHIR R5 형태 번들 (프로토타입 · 공식 검증기·KR Core 미검증)"):
+        if issues:
+            st.error("구조 점검 실패: " + "; ".join(issues))
+        else:
+            st.caption("구조 자체 점검 통과 (참조 연결·필수 항목). 공식 FHIR validator와 KR Core 프로파일 검증은 아직 하지 않았습니다.")
         st.json(bundle, expanded=False)
     c1, c2 = st.columns(2)
     c1.download_button("FHIR 번들 다운로드 (.json)", json.dumps(bundle, ensure_ascii=False, indent=2),

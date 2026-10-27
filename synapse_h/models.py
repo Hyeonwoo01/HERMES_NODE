@@ -138,3 +138,4 @@ class Recommendation:
     why_top: str
     model_version: str = MODEL_VERSION
     latency_ms: float = 0.0
+    safety_flags: list[str] = field(default_factory=list)

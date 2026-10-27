@@ -4,6 +4,11 @@ Compares a nearest-appropriate policy with the Synapse-H policy over paired
 synthetic episodes. Both policies face the *same* latent acceptance draw per
 hospital, so every difference comes from the contact order alone.
 
+The Synapse-H policy only uses what the app could observe (historical
+acceptance and a reported, possibly stale load) through the app's own
+readiness baseline; it never sees the latent acceptance, the regional shock
+or the unexplained variation.
+
 This tests computational plausibility only. It contains no patient data,
 does not reproduce Korean hospital behaviour and does not estimate mortality.
 """
@@ -17,18 +22,22 @@ import pandas as pd
 
 from .capabilities import PATHWAYS
 from .data import HANDOVER_MIN, ROAD_FACTOR, SPEED_KMH, default_network
+from .readiness import COEF, PRIOR_ACCEPT
 
 CONDITIONS = ("stroke", "trauma", "stemi", "pediatric", "gi_bleed")
 CONDITION_MIX = (0.25, 0.20, 0.20, 0.15, 0.20)
 TRAVEL_SURFACES = {"urban": 1.0, "mixed": 1.4, "rural": 2.0}
 REGION_BOX = (4.0, 24.0, 4.0, 20.0)
+STALE_SHRINK = 0.6  # stale estimates are pulled toward the prior, as in synapse_h.readiness
 
 
 @dataclass(frozen=True)
 class TwinParams:
     n_episodes: int = 20_000
     seed: int = 2026
-    prediction_noise: float = 0.8  # logit-scale SD of the readiness estimate
+    model_error: float = 0.3  # extra logit-scale misspecification of the readiness baseline
+    report_sd: float = 0.05  # error in a fresh reported load
+    stale_report_sd: float = 0.20  # error in a stale reported load (older value)
     stale_prob: float = 0.15  # chance a hospital feed is stale in an episode
     first_contact_min: float = 3.0
     failed_contact_min: float = 6.0
@@ -36,7 +45,7 @@ class TwinParams:
     travel_surface: str = "urban"
     congestion_mean: float = 0.0
     congestion_sd: float = 0.5
-    latent_noise: float = 0.6  # hospital-episode variation the predictor cannot see
+    latent_noise: float = 0.6  # hospital-episode variation no observable feature explains
     w_travel: float = 1.0
     w_rejection: float = 1.0
     w_load: float = 0.5
@@ -104,13 +113,17 @@ def simulate(params: TwinParams | None = None) -> TwinResult:
     g = rng.normal(p.congestion_mean, p.congestion_sd, n)
     load = np.clip(base_load[None, :] + 0.15 * g[:, None] + rng.normal(0, 0.12, (n, m)), 0, 1)
 
-    # 4. Latent acceptance and an imperfect prediction of it.
+    # 4. Latent acceptance. The policy never sees z_true, the regional shock g or the latent term.
     z_true = -0.6 + 4.0 * hist[None, :] - 2.8 * load - 0.6 * g[:, None] + rng.normal(0, p.latent_noise, (n, m))
     p_true = 1 / (1 + np.exp(-z_true))
+    # Observable state, as the app sees it: historical acceptance and a *reported* load that is
+    # older and noisier when the feed is stale. The estimate is the app's own logistic baseline.
     stale = rng.random((n, m)) < p.stale_prob
-    noise_sd = np.where(stale, 2 * p.prediction_noise, p.prediction_noise)
-    z_hat = z_true + rng.normal(0, 1, (n, m)) * noise_sd
+    load_obs = np.clip(load + rng.normal(0, 1, (n, m)) * np.where(stale, p.stale_report_sd, p.report_sd), 0, 1)
+    z_hat = (COEF["intercept"] + COEF["hist_accept_rate"] * hist[None, :] + COEF["load"] * load_obs
+             + rng.normal(0, p.model_error, (n, m)))
     p_hat = 1 / (1 + np.exp(-z_hat))
+    p_hat = np.where(stale, STALE_SHRINK * p_hat + (1 - STALE_SHRINK) * PRIOR_ACCEPT, p_hat)
     uncertainty = np.where(stale, 0.4, 0.1)
 
     # 6. Shared acceptance draws: both policies face the same episode.
@@ -120,7 +133,7 @@ def simulate(params: TwinParams | None = None) -> TwinResult:
     near_key = np.where(eligible, travel, np.inf)
     syn_score = (p.w_travel * travel
                  + p.w_rejection * (1 - p_hat) * p.retry_penalty_min
-                 + p.w_load * load * 10
+                 + p.w_load * load_obs * 10
                  + p.w_uncertainty * uncertainty * 10)
     syn_key = np.where(eligible, syn_score, np.inf)
 
@@ -174,7 +187,8 @@ def summarize(ep: pd.DataFrame) -> pd.DataFrame:
 
 
 SENSITIVITY_VARIABLES = {
-    "prediction_noise": ("예측 오차 (logit SD)", [0.0, 0.4, 0.8, 1.2, 1.6, 2.0, 3.0]),
+    "model_error": ("모델 오차 (logit SD)", [0.0, 0.3, 0.6, 1.0, 1.5, 2.0]),
+    "latent_noise": ("관측 불가 변동 (logit SD)", [0.0, 0.3, 0.6, 1.0, 1.5]),
     "failed_contact_min": ("실패 연락 비용 (분)", [3, 6, 9, 12]),
     "congestion_mean": ("지역 혼잡도 (평균 shock)", [-0.5, 0.0, 0.5, 1.0, 1.5]),
     "stale_prob": ("피드 지연 확률", [0.0, 0.15, 0.3, 0.5]),
@@ -200,3 +214,34 @@ def sensitivity(variable: str, base: TwinParams | None = None, n_episodes: int =
 
 def params_dict(p: TwinParams) -> dict:
     return asdict(p)
+
+
+KEY_METRICS = ("first_accept", "attempts", "confirmation", "travel", "conf_plus_travel")
+
+
+def replicate(params: TwinParams | None = None, n_reps: int = 10) -> pd.DataFrame:
+    """Paired Synapse-H minus nearest differences for independent seeds."""
+    base = params or TwinParams()
+    rows = []
+    for i in range(n_reps):
+        s = simulate(replace(base, seed=base.seed + i)).summary.set_index("metric")
+        row = {"seed": base.seed + i}
+        for k in KEY_METRICS:
+            row[k] = s.loc[k, "Synapse-H"] - s.loc[k, "Nearest appropriate"]
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def replicate_summary(reps: pd.DataFrame, level: float = 0.95) -> pd.DataFrame:
+    """Mean paired difference with a t-based confidence interval across seeds."""
+    from scipy import stats
+
+    n = len(reps)
+    t = stats.t.ppf(0.5 + level / 2, n - 1) if n > 1 else float("nan")
+    out = []
+    for k in KEY_METRICS:
+        x = reps[k]
+        half = t * x.std(ddof=1) / np.sqrt(n) if n > 1 else float("nan")
+        out.append({"metric": k, "mean_diff": x.mean(), "ci_low": x.mean() - half, "ci_high": x.mean() + half,
+                    "n_seeds": n})
+    return pd.DataFrame(out)

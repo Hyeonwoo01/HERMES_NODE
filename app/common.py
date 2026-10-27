@@ -34,7 +34,7 @@ def init_state() -> None:
     if "concurrent" not in ss:
         ss.concurrent = [build_case(d["case_id"], d["origin_id"], d) for d in CONCURRENT_CASES]
     ss.setdefault("case_seq", 1060)
-    ss.setdefault("mode", "pilot")
+    ss.setdefault("mode", "visible")
     ss.setdefault("clock", time(14, 32))
     ss.setdefault("user", "전원 간호사 김OO")
     ss.setdefault("weights", Weights())
@@ -46,10 +46,10 @@ def sidebar() -> None:
         st.markdown("### ⚙️ 운영 설정")
         mode = st.radio(
             "운영 모드",
-            ["pilot", "shadow"],
-            format_func=lambda m: {"pilot": "Controlled pilot · 추천 표시",
-                                   "shadow": "Shadow mode · 결정 후 공개"}[m],
-            index=0 if ss.mode == "pilot" else 1,
+            ["visible", "shadow"],
+            format_func=lambda m: {"visible": "추천 표시 (데모)",
+                                   "shadow": "Shadow · 결정 후 공개 (데모)"}[m],
+            index=0 if ss.mode == "visible" else 1,
             help="Shadow mode에서는 사용자가 먼저 병원을 선택한 뒤 추천이 공개되어 "
                  "진료에 영향을 주지 않고 성능을 비교합니다 (제안서 §4.3 Stage 3).",
         )
@@ -105,6 +105,9 @@ h1, h2, h3, h4 {{letter-spacing:-0.02em}}
 .sh-nav .ttl {{font-weight:500;font-size:1rem;letter-spacing:-0.03em;color:{INK2};white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}}
 .sh-nav .sep {{width:1px;height:20px;background:{DUST}}}
+.sh-nav {{margin-bottom:10px}}
+.sh-demo {{background:#FBE7DC;color:{CLAY};border-radius:999px;padding:8px 20px;font-size:.8rem;font-weight:500;
+  line-height:1.4;margin:0 0 24px}}
 
 /* Eyebrow label: accent dot + uppercase tracking (the only uppercase in the system) */
 .sh-eyebrow {{font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:{INK2};
@@ -200,6 +203,7 @@ mark.ev {{background:#F9D9C5;padding:1px 4px;border-radius:6px;color:{INK}}}
 
 @media (max-width: 767px) {{
   .sh-nav {{padding:12px 20px;border-radius:28px;flex-wrap:wrap;gap:6px 12px}}
+  .sh-demo {{border-radius:18px;padding:8px 14px}}
   .sh-nav .ttl {{font-size:.92rem}}
   .sh-nav .sep {{display:none}}
   .sh-case {{padding:20px}}
@@ -229,12 +233,17 @@ def inject_css() -> None:
     st.markdown(CSS, unsafe_allow_html=True)
 
 
+DEMO_WARNING = ("합성 데이터 데모 · 병원·환자·수용 점수는 가상 예시이며 검증되지 않았습니다 · "
+                "실제 환자 정보를 입력하지 마세요 · 실제 진료 결정에 사용 금지")
+
+
 def header(title: str, tag: str) -> None:
-    """Floating pill navigation header shown at the top of every page."""
+    """Floating pill navigation header plus the always-visible demo warning."""
     st.markdown(
         f'<div class="sh-nav"><div class="brand"><span class="logo"><i></i>SYNAPSE-H</span>'
         f'<span class="sep"></span><span class="ttl">{esc(title)}</span></div>'
-        f'<span class="sh-eyebrow">{esc(tag)}</span></div>', unsafe_allow_html=True)
+        f'<span class="sh-eyebrow">{esc(tag)}</span></div>'
+        f'<div class="sh-demo" role="note">⚠ {esc(DEMO_WARNING)}</div>', unsafe_allow_html=True)
 
 
 def tile(label: str, value: str, sub: str = "", color: str = INK) -> str:

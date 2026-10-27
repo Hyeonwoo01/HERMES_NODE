@@ -1,7 +1,7 @@
 """SYNAPSE-H mobile — one screen for phones and tablets.
 
 Enter the referral data, confirm what was extracted, get ranked destinations.
-No settings: default weights, controlled-pilot mode and the current Korean
+No settings: default weights, synthetic-demo mode and the current Korean
 time are used. Extracted fields are never ranked until a clinician confirms
 them, and the clinician still picks the hospital and records the response.
 
@@ -27,8 +27,11 @@ from synapse_h.data import SCENARIOS, default_network, origins, travel_minutes  
 from synapse_h.intake import (FIELD_LABELS, REQUIRED_FIELDS, RuleBasedExtractor,  # noqa: E402
                               build_case)
 from synapse_h.models import CAPABILITY_LABELS  # noqa: E402
+from synapse_h.handoff import sbar  # noqa: E402
 from synapse_h.optimizer import Weights, rank_destinations  # noqa: E402
 from synapse_h.readiness import CONFIDENCE_KO  # noqa: E402
+
+DEMO_MODE = "synthetic-demo"
 
 st.set_page_config(page_title="SYNAPSE-H", page_icon="🚑", layout="centered",
                    initial_sidebar_state="collapsed")
@@ -78,7 +81,7 @@ def go(stage, **kw):
     st.rerun()
 
 
-header("응급 전원 추천", "Mobile")
+header("응급 전원 추천", "Synthetic demo")
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +94,7 @@ def make_case(values: dict, note: str, red_flags: list[str]):
         return None, str(e)
     ss.m_seq += 1
     case.case_id = f"M-{ss.m_seq}"
+    ss.m_audit.case_opened(case.case_id, DEMO_MODE, "mobile clinician")
     return case, ""
 
 
@@ -125,6 +129,7 @@ def input_view():
         note = st.text_area("의뢰 메모", M.get("note", ""), height=150,
                             placeholder="예) 72세 남성, 안면마비, 편마비. 발생 40분 전. BP 160/90, HR 92, "
                                         "SpO2 96%. Pre-KTAS 2.")
+        st.caption("🔒 실제 환자의 이름·등록번호·연락처 등 개인정보를 입력하지 마세요. 합성 데모용 입력만 허용됩니다.")
         if st.button("🔎 정보 추출", type="primary", width="stretch"):
             if not note.strip():
                 st.error("의뢰 메모를 입력하세요.")
@@ -164,6 +169,8 @@ def confirm_view():
     f = res.fields
     st.markdown('<span class="sh-eyebrow">의료진 확인</span>', unsafe_allow_html=True)
     st.markdown("**메모에서 읽은 값을 원문과 대조해 확인하세요.** 확인한 값만 추천에 사용합니다.")
+    if res.notes:
+        st.info("ℹ️ " + " · ".join(res.notes))
     st.markdown(f'<div class="sh-case">{highlight(res.note, f)}</div>', unsafe_allow_html=True)
     if res.red_flags:
         st.warning("🚩 " + ", ".join(res.red_flags))
@@ -233,8 +240,8 @@ def card(o):
         f'<div style="display:flex"><span class="sh-rank">{o.rank}</span><div>'
         f'<div class="sh-name">{esc(o.hospital.name)}<small>{esc(o.hospital.tier)}</small></div>'
         f'<div class="sh-reason">{esc(o.reason)}</div>{warn}</div></div>'
-        f'<div class="sh-eta">이동 <b>{o.travel_min:.0f}분</b><br>'
-        f'수용 가능성 <b>{r.accept_prob:.0%}</b><br>'
+        f'<div class="sh-eta">모의 이동 <b>{o.travel_min:.0f}분</b><br>'
+        f'수용 점수 <b>{r.accept_prob:.0%}</b> <span class="muted">합성·미검증</span><br>'
         f'신뢰도 {CONFIDENCE_KO[r.confidence]}</div></div></div>')
 
 
@@ -243,7 +250,7 @@ def result_view():
     rec = rank_destinations(case, ss.m_network, ss.m_origins[case.origin_id], Weights(),
                             now_kst().hour, M["refused"])
     if M.get("logged") != (case.case_id, len(M["refused"])):
-        ss.m_audit.recommendation(rec, "pilot")
+        ss.m_audit.recommendation(rec, DEMO_MODE)
         M["logged"] = (case.case_id, len(M["refused"]))
     summary(case)
     if M["refused"]:
@@ -254,31 +261,31 @@ def result_view():
                     f'{esc(rec.escalation_reason)}</div>', unsafe_allow_html=True)
         st.write("")
         if not rec.options and st.button("📞 의료지도(Medical Control) 연락", type="primary", width="stretch"):
-            ss.m_audit.decision(case.case_id, None, None, rec.escalation_reason)
+            ss.m_audit.decision(case.case_id, None, None, rec.escalation_reason, DEMO_MODE)
             go("done", outcome="escalated")
 
     for o in rec.options:
         st.markdown(card(o), unsafe_allow_html=True)
-        label = f"📞 {o.hospital.name}에 연락"
+        label = f"📞 {o.hospital.name} 선택 · 통화 결과 기록"
         if st.button(label, key=f"pick_{o.hospital.id}", type="primary" if o.rank == 1 else "secondary",
                      width="stretch"):
             if o.rank == 1:
-                ss.m_audit.decision(case.case_id, o.hospital.id, 1)
-                go("contact", contact=o.hospital.id)
+                ss.m_audit.decision(case.case_id, o.hospital.id, 1, mode=DEMO_MODE)
+                go("contact", contact=o.hospital.id, contact_rank=1)
             M["pending_override"] = o.hospital.id
             st.rerun()
         if M.get("pending_override") == o.hospital.id:
             reason = st.pills("1순위가 아닌 병원을 고른 이유", OVERRIDE_REASONS, key=f"why_{o.hospital.id}")
-            if st.button("이 병원으로 연락", key=f"confirm_{o.hospital.id}", width="stretch", disabled=not reason):
-                ss.m_audit.decision(case.case_id, o.hospital.id, o.rank, reason)
-                go("contact", contact=o.hospital.id, pending_override=None)
+            if st.button("이 병원 선택", key=f"confirm_{o.hospital.id}", width="stretch", disabled=not reason):
+                ss.m_audit.decision(case.case_id, o.hospital.id, o.rank, reason, DEMO_MODE)
+                go("contact", contact=o.hospital.id, contact_rank=o.rank, pending_override=None)
 
     if rec.options:
         st.markdown(f'<div class="sh-why"><span class="sh-eyebrow">1순위인 이유</span>{esc(rec.why_top)}</div>',
                     unsafe_allow_html=True)
         st.write("")
         if st.button("📞 의료지도(Medical Control) 연락", width="stretch"):
-            ss.m_audit.decision(case.case_id, None, None, "사용자 판단")
+            ss.m_audit.decision(case.case_id, None, None, "사용자 판단", DEMO_MODE)
             go("done", outcome="escalated")
     if st.button("← 처음으로", width="stretch"):
         reset()
@@ -292,17 +299,19 @@ def contact_view():
     case = M["case"]
     h = next(x for x in ss.m_network if x.id == M["contact"])
     summary(case)
-    st.markdown(f'<div class="sh-why"><span class="sh-eyebrow">연락 중</span>'
-                f'<b>{esc(h.name)}</b> 전원 데스크에 연락하고 결과를 눌러 주세요.</div>', unsafe_allow_html=True)
-    st.write("")
+    st.markdown(f'<div class="sh-why"><span class="sh-eyebrow">통화 후 결과 기록</span>'
+                f'이 앱은 전화를 걸지 않습니다. <b>{esc(h.name)}</b> 전원 데스크와 앱 밖에서 통화한 뒤 결과를 눌러 주세요.'
+                '</div>', unsafe_allow_html=True)
+    st.caption("통화할 때 쓸 전원 의뢰 요약 (길게 눌러 복사)")
+    st.code(sbar(case, ss.m_origins[case.origin_id].name, contacts=M["contacts"] + [h.name]), language=None, wrap_lines=True)
     if st.button("✅ 수용했어요", type="primary", width="stretch"):
-        ss.m_audit.contact_outcome(case.case_id, h.id, True)
+        ss.m_audit.contact_outcome(case.case_id, h.id, True, recommended_rank=M.get("contact_rank"))
         M["contacts"].append(h.name)
         h.beds_available = max(0, h.beds_available - 1)
         go("done", outcome="accepted", destination=h.id)
     reason = st.pills("거절 사유", REFUSAL_REASONS, key="refusal")
     if st.button("❌ 거절했어요 → 다음 병원 추천", width="stretch", disabled=not reason):
-        ss.m_audit.contact_outcome(case.case_id, h.id, False, reason)
+        ss.m_audit.contact_outcome(case.case_id, h.id, False, reason, recommended_rank=M.get("contact_rank"))
         M["contacts"].append(h.name)
         M["refused"].add(h.id)
         go("result")
@@ -313,10 +322,13 @@ def done_view():
     if M["outcome"] == "accepted":
         h = next(x for x in ss.m_network if x.id == M["destination"])
         eta = travel_minutes(ss.m_origins[case.origin_id], h)
+        tr = next(t for t in ss.m_audit.traces() if t.case_id == case.case_id)
         st.markdown(
-            f'<div class="m-done"><span class="sh-eyebrow">전원 확정</span><h3>{esc(h.name)}</h3>'
-            f'예상 이동 {eta:.0f}분 · 연락 {len(M["contacts"])}회 · {now_kst():%H:%M} 확정</div>',
-            unsafe_allow_html=True)
+            f'<div class="m-done"><span class="sh-eyebrow">전원 확정 기록</span><h3>{esc(h.name)}</h3>'
+            f'모의 이동 {eta:.0f}분 · 연락 {len(M["contacts"])}회 · 확인부터 {tr.measured_minutes:.1f}분 · '
+            f'{now_kst():%H:%M}</div>', unsafe_allow_html=True)
+        st.caption("수용 병원에 보낼 전원 의뢰 요약")
+        st.code(sbar(case, ss.m_origins[case.origin_id].name, h, M["contacts"]), language=None, wrap_lines=True)
     else:
         st.markdown('<div class="sh-esc"><span class="sh-eyebrow">의료지도로 전달</span>'
                     "받을 수 있는 병원을 찾지 못해 의료지도(Medical Control)에 연락하도록 안내했습니다.</div>",

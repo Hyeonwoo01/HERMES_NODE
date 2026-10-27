@@ -76,11 +76,41 @@ _SEX = [
 ]
 
 
+# Context rules: a keyword only supports a pathway when it describes a current finding.
+NEG_BEFORE = ("no ", "not ", "denies ", "denied ", "negative for ", "without ", "ruled out ", "free of ",
+              "absence of ", "absent ")
+NEG_AFTER = ("배제", "아님", "아니", "없음", "없고", "없으며", "없다", "없는", "음성", "부인", " ruled out",
+             " excluded", " negative", " absent", "(-)")
+HIST_BEFORE = ("history of ", "h/o ", "hx of ", "pmh", "past history", "previous ", "prior ", "old ",
+               "과거력", "기왕력", "과거 ", "이전 ")
+HIST_AFTER = ("과거력", "기왕력", " history", "병력")
+UNCLEAR_ONSET = ("unknown onset", "onset unknown", "lkw unknown", "unwitnessed", "wake-up", "woke up with",
+                 "this morning", "yesterday", "last night", "발병 시각 불명", "발병 시간 불명", "발생 시각 불명",
+                 "시간 모름", "모름", "불명", "아침부터", "어제", "새벽")
+_CLAUSE_END = re.compile(r"[.;:,\n]")
+
+
+def _keyword_context(low: str, pos: int, end: int) -> str:
+    """'negated', 'history' or 'current' for the keyword at low[pos:end]."""
+    before = low[max(0, pos - 40):pos]
+    cut = max((m.end() for m in _CLAUSE_END.finditer(before)), default=0)
+    before = before[cut:]
+    after = low[end:end + 14]
+    m = _CLAUSE_END.search(after)
+    after = after[:m.start()] if m else after
+    if any(c in before for c in NEG_BEFORE) or any(c in after for c in NEG_AFTER):
+        return "negated"
+    if any(c in before for c in HIST_BEFORE) or any(c in after for c in HIST_AFTER):
+        return "history"
+    return "current"
+
+
 @dataclass
 class IntakeResult:
     note: str
     fields: dict[str, ExtractedField]
     red_flags: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)  # context the clinician should see (negation, history, conflict)
 
     @property
     def missing(self) -> list[str]:
@@ -135,12 +165,18 @@ class RuleBasedExtractor:
             fields["sbp"] = ExtractedField("sbp", None, "missing", 0.0)
             fields["dbp"] = ExtractedField("dbp", None, "missing", 0.0)
 
+        frac = re.search(r"(?:SpO2|SaO2|O2\s*sat|산소포화도)\s*[:=]?\s*(0?\.\d{1,3})(?!\d)", note, re.IGNORECASE)
+        if frac and fields["spo2"].status == "missing":
+            fields["spo2"] = ExtractedField("spo2", None, "invalid", 0.0, frac.group(0), frac.span(),
+                                            "비율(예: 0.96)로 적힌 것으로 보임 — % 값으로 확인 필요")
+
+        notes: list[str] = []
         fields["onset_min"] = self._onset(note)
         fields["sex"] = self._sex(note)
-        fields["pathway"] = self._pathway(low, note, fields["age"].value)
+        fields["pathway"] = self._pathway(low, note, fields["age"].value, notes)
 
         red = sorted({label for key, label in RED_FLAGS.items() if key in low})
-        return IntakeResult(note=note, fields=fields, red_flags=red)
+        return IntakeResult(note=note, fields=fields, red_flags=red, notes=notes)
 
     @staticmethod
     def _first_number(name: str, note: str, patterns: list[str]) -> ExtractedField:
@@ -156,6 +192,13 @@ class RuleBasedExtractor:
     def _onset(note: str) -> ExtractedField:
         m = re.search(_ONSET, note, re.IGNORECASE)
         if not m:
+            low = note.lower()
+            vague = next((c for c in UNCLEAR_ONSET if c in low), None)
+            if vague:
+                pos = low.find(vague)
+                return ExtractedField("onset_min", None, "missing", 0.0, note[pos:pos + len(vague)],
+                                      (pos, pos + len(vague)),
+                                      f"발병 시각이 불명확함('{vague}') — 마지막 정상 시각(LKW)을 확인해 입력")
             return ExtractedField("onset_min", None, "missing", 0.0,
                                   message="절대 시각(LKW) 확인 필요")
         val = int(m.group(1))
@@ -176,14 +219,26 @@ class RuleBasedExtractor:
         return ExtractedField("sex", None, "missing", 0.0)
 
     @staticmethod
-    def _pathway(low: str, note: str, age: int | None) -> ExtractedField:
-        best, best_hits, best_span = None, 0, None
+    def _pathway(low: str, note: str, age: int | None, notes: list[str]) -> ExtractedField:
+        scored = []  # (hits, key, first_span)
         for key, p in PATHWAYS.items():
-            hits = [(kw, low.find(kw)) for kw in p.keywords if kw in low]
-            if len(hits) > best_hits:
-                best, best_hits = key, len(hits)
-                kw, pos = min(hits, key=lambda h: h[1])
-                best_span = (pos, pos + len(kw))
+            current, first = set(), None
+            for kw in p.keywords:
+                for m in re.finditer(re.escape(kw), low):
+                    ctx = _keyword_context(low, m.start(), m.end())
+                    if ctx == "current":
+                        current.add(kw)
+                        if first is None or m.start() < first[0]:
+                            first = (m.start(), m.end())
+                    else:
+                        label = "부정 표현" if ctx == "negated" else "과거력"
+                        notes.append(f"{label}으로 판단해 제외: '{note[m.start():m.end()]}' ({PATHWAYS[key].label})")
+            if current:
+                scored.append((len(current), key, first))
+        notes[:] = list(dict.fromkeys(notes))
+        scored.sort(key=lambda x: -x[0])
+        best, best_hits, best_span = (scored[0][1], scored[0][0], scored[0][2]) if scored else (None, 0, None)
+
         if age is not None and age < PEDIATRIC_AGE_LIMIT and best in (None, "trauma", "pediatric"):
             span = best_span or (0, 0)
             return ExtractedField("pathway", "pediatric", "extracted", 0.85,
@@ -191,6 +246,13 @@ class RuleBasedExtractor:
         if best is None:
             return ExtractedField("pathway", None, "missing", 0.0,
                                   message="임상 경로를 특정할 근거 없음 — 임상의 선택 필요")
+        if len(scored) > 1:
+            second_hits, second = scored[1][0], scored[1][1]
+            if second_hits == best_hits or second_hits >= 2:
+                msg = (f"경로 근거가 충돌함 ({PATHWAYS[best].label} {best_hits}개 vs "
+                       f"{PATHWAYS[second].label} {second_hits}개) — 의료진이 직접 선택")
+                notes.append(msg)
+                return ExtractedField("pathway", None, "missing", 0.0, message=msg)
         conf = min(0.95, 0.6 + 0.1 * best_hits)
         return ExtractedField("pathway", best, "extracted", conf,
                               note[best_span[0]:best_span[1]], best_span,

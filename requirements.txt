@@ -1,6 +1,6 @@
-streamlit>=1.50
-pandas>=2.2
-numpy>=1.26
-scipy>=1.13
-plotly>=5.22
-pytest>=8.0
+# Runtime dependencies, pinned to the versions the app was tested and deployed with.
+streamlit==1.65.0
+pandas==3.0.6
+numpy==2.5.4
+scipy==1.18.1
+plotly==7.1.0

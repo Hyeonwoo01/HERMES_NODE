@@ -28,7 +28,15 @@ from .readiness import CONFIDENCE_KO, UNVERIFIABLE_MIN, predict_readiness
 RETRY_PENALTY_MIN = 12.0  # failed contact + re-search when a destination refuses
 LOAD_SCALE = 10.0
 UNCERTAINTY_SCALE = 10.0
-TRAVEL_GUARDRAIL_MIN = 10.0
+# Safety rules. Values are engineering placeholders that a clinical safety
+# lead must review before any patient-facing use (see docs/DECISIONS.md).
+SAFETY_RULES = {
+    # High-acuity patients (Pre-KTAS <= this) routed past the nearest capable
+    # hospital by more than the guardrail are escalated, not just annotated.
+    "high_acuity_ktas_max": 2,
+    "travel_guardrail_min": 10.0,
+}
+TRAVEL_GUARDRAIL_MIN = SAFETY_RULES["travel_guardrail_min"]
 
 TERM_LABELS = {
     "travel": "이동 시간",
@@ -147,6 +155,7 @@ def rank_destinations(case: CaseRecord, network: list[Hospital], origin: Origin,
 
     options = candidates[:top_k]
     escalate, esc_reason, why = False, "", ""
+    safety_flags: list[str] = []
     if not options:
         escalate = True
         esc_reason = (f"'{PATHWAYS[case.pathway].label}' 경로의 필수 역량과 가용 병상을 갖춘 병원이 "
@@ -155,15 +164,23 @@ def rank_destinations(case: CaseRecord, network: list[Hospital], origin: Origin,
         why = _why_top(options)
         nearest = min(c.travel_min for c in candidates)
         top = options[0]
-        if case.ktas <= 2 and top.travel_min - nearest > TRAVEL_GUARDRAIL_MIN:
-            top.warnings.append(f"가장 가까운 적합 병원보다 {top.travel_min - nearest:.0f}분 더 멂 — 임상 근거 확인")
-        if top.readiness.confidence == "low":
+        extra = top.travel_min - nearest
+        if case.ktas <= SAFETY_RULES["high_acuity_ktas_max"] and extra > SAFETY_RULES["travel_guardrail_min"]:
+            top.warnings.append(f"가장 가까운 적합 병원보다 {extra:.0f}분 더 멂 — 임상 근거 확인")
+            safety_flags.append("travel_guardrail")
             escalate = True
-            esc_reason = ("1순위 추천의 불확실성이 임계값을 넘었습니다. 순위는 참고용이며 "
-                          "의료지도 확인 후 결정하세요.")
+            esc_reason = (f"고위험 환자(Pre-KTAS {case.ktas})의 1순위가 가장 가까운 적합 병원보다 {extra:.0f}분 더 "
+                          "멉니다. 이 순위를 그대로 따르지 말고 의료지도 확인 후 결정하세요.")
+        if top.readiness.confidence == "low":
+            safety_flags.append("low_confidence")
+            escalate = True
+            esc_reason = (esc_reason + " " if esc_reason else "") + (
+                "1순위 추천의 불확실성이 임계값을 넘었습니다. 순위는 참고용이며 의료지도 확인 후 결정하세요.")
 
+    if not options:
+        safety_flags.append("no_eligible")
     return Recommendation(case, options, excluded, escalate, esc_reason, why,
-                          latency_ms=(time.perf_counter() - t0) * 1000)
+                          latency_ms=(time.perf_counter() - t0) * 1000, safety_flags=safety_flags)
 
 
 # --------------------------------------------------------------------------

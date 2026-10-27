@@ -22,14 +22,14 @@ m = ss.audit.metrics()
 stale = [h for h in net if h.feed_age_min > STALE_THRESHOLD_MIN]
 active = len(ss.concurrent) + sum(t["status"] != "수용" for t in ss.transfers)
 
-fca = m["first_choice_accept"]
-med = m["median_confirmation_min"]
+fca = m["first_contact_accept"]
+med = m["median_measured_min"]
 cols = st.columns(4)
 cols[0].markdown(tile("Active cases", str(active), "동시 대기 + 진행 중 케이스"), unsafe_allow_html=True)
-cols[1].markdown(tile("First-choice accept", f"{fca:.0%}" if fca is not None else "—",
-                      "오케스트레이터 연락 기록 기준"), unsafe_allow_html=True)
-cols[2].markdown(tile("Median confirmation", f"{med:.1f}m" if med is not None else "—",
-                      "첫 연락 3분 + 실패당 6분"), unsafe_allow_html=True)
+cols[1].markdown(tile("First-contact accept", f"{fca:.0%}" if fca is not None else "—",
+                      f"첫 통화 수용 · 연락한 {m['contacted_cases']}건 기준"), unsafe_allow_html=True)
+cols[2].markdown(tile("Median time to accept", f"{med:.1f}m" if med is not None else "—",
+                      f"실제 경과 · 미해결 {m['unresolved_cases']}건은 별도"), unsafe_allow_html=True)
 cols[3].markdown(tile("Stale feeds", str(len(stale)), f"{STALE_THRESHOLD_MIN:.0f}분 신선도 임계값 초과",
                       SIGNAL if stale else INK), unsafe_allow_html=True)
 st.write("")
@@ -120,11 +120,11 @@ st.caption("값을 직접 수정해 병상·부하·피드 지연 변화를 시�
 df = pd.DataFrame([{
     "ID": h.id, "병원": h.name, "등급": h.tier, "가용 병상": h.beds_available, "부하": h.load,
     "과거 수용률": h.hist_accept_rate, "승인 지연(분)": h.confirm_delay_min, "피드 경과(분)": h.feed_age_min,
-    "예측 수용": round(predict_readiness(h, hour()).accept_prob, 2),
+    "수용 점수(미검증)": round(predict_readiness(h, hour()).accept_prob, 2),
 } for h in net])
 edited = st.data_editor(
     df, hide_index=True, width="stretch",
-    disabled=["ID", "병원", "등급", "예측 수용"],
+    disabled=["ID", "병원", "등급", "수용 점수(미검증)"],
     column_config={
         "부하": st.column_config.NumberColumn(min_value=0.0, max_value=1.0, step=0.05, format="%.2f"),
         "과거 수용률": st.column_config.NumberColumn(min_value=0.0, max_value=1.0, step=0.05, format="%.2f"),

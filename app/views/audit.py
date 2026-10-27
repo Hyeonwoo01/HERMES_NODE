@@ -20,29 +20,51 @@ def pct(v):
     return "—" if v is None else f"{v:.0%}"
 
 
-c = st.columns(5)
-c[0].markdown(tile("기록된 케이스", str(m["cases"])), unsafe_allow_html=True)
-c[1].markdown(tile("의사결정", str(m["decisions"])), unsafe_allow_html=True)
-c[2].markdown(tile("오버라이드율", pct(m["override_rate"]), "사유 100% 기록"), unsafe_allow_html=True)
-c[3].markdown(tile("1순위 수용률", pct(m["first_choice_accept"])), unsafe_allow_html=True)
-c[4].markdown(tile("에스컬레이션", str(m["escalations"]), "의료지도 호출/권고 케이스"), unsafe_allow_html=True)
+def num(v, fmt="{:.2f}", unit=""):
+    return "—" if v is None else fmt.format(v) + unit
+
+
+c = st.columns(4)
+c[0].markdown(tile("기록된 케이스", str(m["cases"]), f"연락 {m['contacted_cases']} · 미해결 {m['unresolved_cases']}"),
+              unsafe_allow_html=True)
+c[1].markdown(tile("오버라이드율", pct(m["override_rate"]), f"결정 {m['decisions']}건 · 사유 100% 기록"),
+              unsafe_allow_html=True)
+c[2].markdown(tile("첫 통화 수용률", pct(m["first_contact_accept"]), "어느 순위든 처음 연락한 병원"),
+              unsafe_allow_html=True)
+c[3].markdown(tile("모델 1순위 수용률", pct(m["model_top1_accept"]),
+                   f"1순위에 먼저 연락한 {m['model_top1_cases']}건 기준"), unsafe_allow_html=True)
+st.write("")
+c = st.columns(4)
+c[0].markdown(tile("케이스당 연락", num(m["mean_contacts"]), "미해결 케이스 포함"), unsafe_allow_html=True)
+c[1].markdown(tile("수용까지 실제 경과", num(m["median_measured_min"], "{:.1f}", "분"),
+                   "중앙값 · 이 데모의 기록 시각 기준"), unsafe_allow_html=True)
+c[2].markdown(tile("가정 기준 승인 시간", num(m["median_assumed_min"], "{:.0f}", "분"),
+                   "첫 연락 3분 + 실패당 6분 (측정값 아님)"), unsafe_allow_html=True)
+c[3].markdown(tile("에스컬레이션", str(m["escalations"]), "의료지도 호출/권고 케이스"), unsafe_allow_html=True)
 st.write("")
 
-tab_log, tab_pilot, tab_card, tab_hazard = st.tabs(["감사 로그", "파일럿 지표", "모델 카드", "위해 통제"])
+tab_log, tab_pilot, tab_card, tab_hazard = st.tabs(["감사 로그", "파일럿 목표 지표", "모델 카드", "위해 통제"])
 
 with tab_log:
     if not ss.audit.events:
         st.info("아직 기록이 없습니다. 전원 오케스트레이터에서 케이스를 처리하면 추천·결정·오버라이드·연락 결과가 "
                 "시간순으로 남습니다.")
     else:
+        def detail(e):
+            if e["event"] == "recommendation":
+                return ", ".join(f'#{o["rank"]} {o["hospital"]} (점수 {o["accept_score"]:.0%}, {o["confidence"]})'
+                                 for o in e["options"]) + (f' · 안전 플래그: {", ".join(e["safety_flags"])}'
+                                                          if e.get("safety_flags") else "")
+            if e["event"] in ("select", "override", "escalation"):
+                return f'{e.get("hospital") or "의료지도"} · 추천순위 {e.get("recommended_rank")}'
+            if e["event"] == "contact_outcome":
+                return (f'{e["hospital"]} (추천 {e.get("recommended_rank")}순위) → '
+                        f'{"수용" if e["accepted"] else "거절"}')
+            return "의료진이 필드 확인 · 요청 시각 기록"
+
         df = pd.DataFrame([{
-            "#": e["seq"], "시각(UTC)": e["timestamp"], "케이스": e["case_id"], "이벤트": e["event"],
-            "모드": e.get("mode", ""),
-            "상세": (", ".join(f'#{o["rank"]} {o["hospital"]} ({o["accept_prob"]:.0%}, {o["confidence"]})'
-                              for o in e["options"]) if e["event"] == "recommendation"
-                   else f'{e.get("hospital") or "의료지도"} · 추천순위 {e.get("recommended_rank")}'
-                   if e["event"] in ("select", "override", "escalation")
-                   else f'{e["hospital"]} → {"수용" if e["accepted"] else "거절"}'),
+            "#": e["seq"], "시각(UTC)": e["timestamp"], "환경": e.get("environment", ""),
+            "케이스": e["case_id"], "이벤트": e["event"], "모드": e.get("mode", ""), "상세": detail(e),
             "사유": e.get("override_reason") or e.get("reason") or "",
             "사용자": e.get("user", ""), "지연(ms)": e.get("latency_ms"),
         } for e in ss.audit.events])
@@ -56,11 +78,12 @@ with tab_pilot:
                "파트너와 확정합니다. ‘현재 세션’ 값은 이 데모 세션의 기록에서 계산됩니다.")
     st.dataframe(pd.DataFrame([
         ["주요 운영", "전원 요청→목적지 확정 시간 중앙값", "사전 정의 기준 대비 ≥15% 단축",
-         "—" if m["median_confirmation_min"] is None else f'{m["median_confirmation_min"]:.1f}분'],
-        ["매칭", "1순위 수용률", "≥8%p 개선", pct(m["first_choice_accept"])],
-        ["부담", "케이스당 평균 연락 수", "≥10% 감소",
-         "—" if m["mean_contacts"] is None else f'{m["mean_contacts"]:.2f}'],
-        ["이송 가드레일", "이송 시간 중앙값 변화", "+2분 이하 (역량 이점 문서화 시 예외)", "랭킹 경고로 표시"],
+         num(m["median_measured_min"], "{:.1f}", "분 (실측)")],
+        ["매칭", "모델 1순위 수용률", "≥8%p 개선", pct(m["model_top1_accept"])],
+        ["매칭", "첫 통화 수용률 (선택 순위 무관)", "참고 지표", pct(m["first_contact_accept"])],
+        ["부담", "케이스당 평균 연락 수 (미해결 포함)", "≥10% 감소", num(m["mean_contacts"])],
+        ["완결", "연락한 케이스 중 수용 확정 비율", "추적 지표", pct(m["resolved_rate"])],
+        ["이송 가드레일", "이송 시간 중앙값 변화", "+2분 이하 (역량 이점 문서화 시 예외)", "고위험 환자는 의료지도 확인으로 에스컬레이션"],
         ["추출", "의료진 검토 후 필수 필드 정확도", "≥95%; 근거 없는 핵심 필드 삽입 0", "확인 양식 강제"],
         ["안전", "치명적 위험 추천률", "판정 세트 0건; 센티넬 이벤트 시 중지", "독립 검토 필요"],
         ["보정", "수용 예측 보정", "기울기/절편 사전 한계 내", "파트너 데이터 필요"],
@@ -75,7 +98,9 @@ with tab_card:
 
 | 항목 | 내용 |
 |---|---|
-| 의도된 용도 | 병원 간 응급 전원 시 *운영* 준비도(단기 수용 확률) 추정과 목적지 순위 제안. 권한 있는 의료진이 최종 선택 |
+| 의도된 용도 | 병원 간 응급 전원 시 *운영* 준비도 점수 산출과 목적지 순위 제안. 권한 있는 의료진이 최종 선택 |
+| 출력의 의미 | **수용 점수**는 합성 계수로 계산한 0–1 사이 값이며 실제 수용 확률로 보정·검증되지 않았습니다. 구간과 신뢰도 라벨도 실측 불확실성이 아닌 규칙 기반 표시입니다 |
+| 검증 계획 | 파트너 데이터 확보 후 Brier score, log loss, 보정 곡선, 예측 구간 포함률, 병원·질환별 성능을 보고 (TRIPOD+AI) |
 | 사용 금지 | 자율 이송 지시, 진단, 생존 확률 제시, 공개 병원 평판 순위 |
 | 학습 데이터 | 없음 — 합성 계수 (logistic baseline). 파트너 데이터로 재적합 필요 |
 | 입력 | 과거 수용률, 현재 부하, 야간 여부, 마지막 병상 여부, 피드 신선도 |

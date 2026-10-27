@@ -6,21 +6,28 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from common import SERIES, header, plotly_layout
-from synapse_h.twin import (SENSITIVITY_VARIABLES, TRAVEL_SURFACES, TwinParams,
-                            sensitivity, simulate)
+from synapse_h.twin import (SENSITIVITY_VARIABLES, TRAVEL_SURFACES, TwinParams, replicate,
+                            replicate_summary, sensitivity, simulate)
 
 header("Synthetic Digital Twin · 합성 디지털 트윈", "No patient data")
 st.markdown(
-    "**검증 질문:** 수용이 불확실하고 병원 역량이 이질적일 때, 이동 시간과 예측 수용 확률을 결합한 점수가 "
+    "**검증 질문:** 수용이 불확실하고 병원 역량이 이질적일 때, 이동 시간과 관찰 가능한 정보로 추정한 수용 점수를 결합한 정책이 "
     "*가장 가까운 적합 병원*을 고르는 방식보다 순차 전화 탐색을 줄이는가? "
     "두 정책은 병원별 **동일한 잠재 수용 난수**를 공유하므로 차이는 연락 순서에서만 발생합니다.")
+st.markdown(
+    '<div class="sh-why"><span class="sh-eyebrow">What the policy can see</span>'
+    "Synapse-H 정책은 앱이 실제로 관찰할 수 있는 정보(병원의 과거 수용률, 보고된 병상 부하 — 피드가 오래되면 "
+    "더 부정확함)만 앱과 같은 로지스틱 기준식으로 사용합니다. 실제 수용 여부를 좌우하는 지역 혼잡 충격과 "
+    "설명되지 않는 변동은 볼 수 없습니다.</div>", unsafe_allow_html=True)
+st.write("")
 
 with st.expander("🔧 시나리오 파라미터", expanded=False):
     d = TwinParams()
     c1, c2, c3 = st.columns(3)
     n = c1.select_slider("에피소드 수", [2000, 5000, 10000, 20000, 50000], d.n_episodes)
     seed = c1.number_input("Random seed", value=d.seed, step=1)
-    noise = c2.slider("예측 오차 (logit SD)", 0.0, 3.0, d.prediction_noise, 0.1)
+    noise = c2.slider("모델 오차 (logit SD)", 0.0, 3.0, d.model_error, 0.1)
+    latent = c2.slider("관측 불가 변동 (logit SD)", 0.0, 2.0, d.latent_noise, 0.1)
     stale = c2.slider("피드 지연 확률", 0.0, 0.8, d.stale_prob, 0.05)
     surface = c3.selectbox("이동 표면", list(TRAVEL_SURFACES), index=0)
     cong = c3.slider("지역 혼잡도 (평균 shock)", -1.0, 2.0, d.congestion_mean, 0.1)
@@ -28,7 +35,7 @@ with st.expander("🔧 시나리오 파라미터", expanded=False):
     first = c1.slider("첫 연락 시간 (분)", 1.0, 6.0, d.first_contact_min, 0.5)
     failed = c2.slider("실패 연락당 추가 시간 (분)", 3.0, 12.0, d.failed_contact_min, 0.5)
     retry = c3.slider("정책의 거절 페널티 R (분)", 0.0, 30.0, d.retry_penalty_min, 1.0)
-    params = replace(d, n_episodes=n, seed=int(seed), prediction_noise=noise, stale_prob=stale,
+    params = replace(d, n_episodes=n, seed=int(seed), model_error=noise, latent_noise=latent, stale_prob=stale,
                      travel_surface=surface, congestion_mean=cong, first_contact_min=first,
                      failed_contact_min=failed, retry_penalty_min=retry)
 
@@ -55,6 +62,26 @@ for col in ("Nearest appropriate", "Synapse-H"):
     table[col] = [fmt(v, k, m) for v, k, m in zip(summary[col], summary["kind"], summary["metric"])]
 st.dataframe(table[["지표", "Nearest appropriate", "Synapse-H", "Paired change"]],
              hide_index=True, width="stretch")
+
+
+
+@st.cache_data(show_spinner="여러 seed로 반복 실행 중…")
+def run_reps(p: TwinParams, n_reps: int):
+    return replicate_summary(replicate(p, n_reps))
+
+
+st.markdown("#### 반복 실험 — seed 10개의 짝지은 차이와 95% 신뢰구간")
+reps = run_reps(params, 10)
+labels = {"first_accept": ("1순위 수용률", 100, "%p"), "attempts": ("평균 연락 횟수", 1, "회"),
+          "confirmation": ("평균 승인 시간", 1, "분"), "travel": ("평균 이송 시간", 1, "분"),
+          "conf_plus_travel": ("승인+이송", 1, "분")}
+st.dataframe([{
+    "지표 (Synapse-H − Nearest)": labels[r.metric][0],
+    "평균 차이": f"{r.mean_diff * labels[r.metric][1]:+.2f} {labels[r.metric][2]}",
+    "95% CI": f"[{r.ci_low * labels[r.metric][1]:+.2f}, {r.ci_high * labels[r.metric][1]:+.2f}]",
+} for r in reps.itertuples()], hide_index=True, width="stretch")
+st.caption(f"seed {params.seed}–{params.seed + 9}, 각 {params.n_episodes:,} 에피소드. 신뢰구간은 시뮬레이션의 "
+           "난수 변동만 반영하며, 모형 가정이 틀렸을 가능성은 반영하지 않습니다.")
 
 c1, c2 = st.columns(2)
 with c1:
@@ -130,6 +157,6 @@ st.markdown(
     "참고할 뿐입니다. 사망률 추정, 임상적 안전성 입증, 한국 병원 행태 재현, 예측 모델 검증이 아닙니다. "
     "가정은 모두 공개되어 있고(<code>synapse_h/twin.py</code>) 파트너 데이터로 하나씩 교체할 수 있습니다. "
     "‘위험보정 지연 지표’는 양식화된 지표이며 사망률이 아닙니다.</div>", unsafe_allow_html=True)
-st.caption(f"제안서 Table 9 참고값 (창업자 원 트윈): 1순위 수용 62.3% → 70.9%, 평균 승인 6.6 → 5.6분, "
-           f"평균 이송 13.6 → 14.1분. 본 앱의 트윈은 독립 구현이므로 수치가 다를 수 있습니다. "
-           f"seed={params.seed}, 재현 가능.")
+st.caption("기준 결과는 `python scripts/run_twin_experiment.py`로 다시 만들 수 있으며 `results/twin_baseline.json`에 "
+           "파라미터·패키지 버전과 함께 저장됩니다. 사업계획서 Table 9는 이전 프로토타입의 수치이므로 이 결과로 "
+           "교체하는 것을 권장합니다 (docs/PROPOSAL_REVISIONS.md).")

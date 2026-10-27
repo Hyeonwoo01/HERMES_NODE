@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install
+        run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: python -m pyflakes synapse_h app tests scripts application_mobile.py
+      - name: Test with coverage
+        run: python -m pytest -q --cov=synapse_h --cov-report=term-missing --cov-fail-under=90
+      - name: Reproduce digital-twin baseline (quick check)
+        run: python scripts/run_twin_experiment.py --episodes 2000 --reps 3 --out /tmp/twin

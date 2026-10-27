@@ -1,8 +1,13 @@
-"""FHIR R5-shaped case bundle export.
+"""FHIR R5-shaped case bundle export (prototype).
 
 The internal schema stays normalized; this adapter exposes the confirmed case
 as Patient, Encounter, Observation, Condition, ServiceRequest, Organization
-and Task resources so a partner that supports FHIR can consume it.
+and Task resources.
+
+Status: the bundle is *shaped like* FHIR R5 and passes the structural
+self-check below. It has not been run through an official FHIR validator, and
+it does not yet use the Korean KR Core profiles or code systems. Do not
+describe it as a completed integration.
 """
 
 from __future__ import annotations
@@ -105,3 +110,55 @@ def case_bundle(case: CaseRecord, destination: Hospital | None = None,
     entries.append(_entry(task))
 
     return {"resourceType": "Bundle", "type": "collection", "timestamp": ts, "entry": entries}
+
+
+# Minimal structural self-check. It catches broken references and missing core
+# fields; it is not a substitute for the official FHIR validator or KR Core.
+_REQUIRED = {
+    "Patient": ("id",),
+    "Encounter": ("id", "status", "subject"),
+    "Observation": ("id", "status", "code", "subject"),
+    "Condition": ("id", "code", "subject"),
+    "ServiceRequest": ("id", "status", "intent", "subject"),
+    "Organization": ("id", "name"),
+    "Task": ("id", "status", "intent"),
+}
+
+
+def _references(node) -> list[str]:
+    refs = []
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k == "reference" and isinstance(v, str):
+                refs.append(v)
+            else:
+                refs.extend(_references(v))
+    elif isinstance(node, list):
+        for v in node:
+            refs.extend(_references(v))
+    return refs
+
+
+def validate_bundle(bundle: dict) -> list[str]:
+    """Return a list of structural problems (empty list = passes the self-check)."""
+    issues = []
+    if bundle.get("resourceType") != "Bundle":
+        issues.append("resourceType is not Bundle")
+    entries = bundle.get("entry", [])
+    urls = [e.get("fullUrl") for e in entries]
+    if len(set(urls)) != len(urls):
+        issues.append("duplicate fullUrl")
+    known = set(urls)
+    for e in entries:
+        r = e.get("resource", {})
+        rt = r.get("resourceType")
+        if rt not in _REQUIRED:
+            issues.append(f"unexpected resourceType: {rt}")
+            continue
+        for f in _REQUIRED[rt]:
+            if not r.get(f):
+                issues.append(f"{rt}/{r.get('id')}: missing {f}")
+        for ref in _references(r):
+            if ref.startswith("urn:uuid:") and ref not in known:
+                issues.append(f"{rt}/{r.get('id')}: unresolved reference {ref}")
+    return issues

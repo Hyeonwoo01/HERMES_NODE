@@ -1,105 +1,122 @@
-# HERMES_NODE
-SYNAPSE-H 프로젝트
+# SYNAPSE-H · 응급 전원 의사결정 지원 (합성 데이터 프로토타입)
 
-**SYNAPSE-H — 응급 전원·병원 수용을 위한 사람 감독형 의사결정 지능 (Human-Supervised Decision Intelligence for Emergency Transfer and Hospital Acceptance)**
+**병원 간 응급 전원에서 "어느 병원에 먼저 연락할지"를 정리해 주는 사람 감독형 의사결정 지원 프로토타입입니다.**
+의뢰 메모를 구조화하고(의료진 확인 필수), 필요한 진료 역량이 있는 병원만 남긴 뒤, 이동 시간·승인 지연·거절 위험·
+병원 부하·데이터 불확실성을 함께 고려해 **설명 가능한 상위 3개 후보**를 보여 줍니다. 최종 결정과 연락은 사람이 합니다.
 
-사업제안서의 MVP를 실행 가능한 웹 애플리케이션으로 구현했습니다.
-의뢰서를 구조화하고, 목적지 준비도를 예측하며, 불확실성 아래에서 임상적으로 적합한 병원을
-**설명 가능한 상위 3개 옵션**으로 제시합니다. **최종 결정은 항상 의료진이 내립니다.**
+> ⚠️ **합성 데이터 데모입니다.** 병원·환자·수용 점수는 모두 가상 예시이며 실제 병원 데이터로 검증되지 않았습니다.
+> 실제 환자 정보를 입력하거나 실제 진료 결정에 사용하지 마세요.
 
-> ⚠️ 모든 병원·환자 값은 합성 예시입니다. 실제 환자 데이터나 실제 기관 정보를 쓰지 않으며, 임상 검증을 거치지 않았습니다.
+- **Live demo:** _(배포 주소 입력 예정 — 웹 앱)_ · _(배포 주소 입력 예정 — 모바일 앱)_
+- **사업계획서:** IYEO 2026 University Division, SYNAPSE-H Business Proposal (Hyeonwoo An)
+- **문서:** [아키텍처·데이터 경계](docs/ARCHITECTURE.md) · [기술 의사결정 기록](docs/DECISIONS.md) ·
+  [현장 사용성 검증 계획](docs/VALIDATION_PLAN.md) · [사업계획서 수정안](docs/PROPOSAL_REVISIONS.md)
 
-## 실행
-
-Python 3.10 이상이 필요합니다. 저장소 최상위 폴더(`HERMES_NODE`)에서 실행하세요.
-
-Mac / Linux:
-
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-streamlit run app/streamlit_app.py      # http://localhost:8501
-pytest                                  # 엔진 테스트
-```
-
-Windows (PowerShell):
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-streamlit run app/streamlit_app.py
-```
-
-PowerShell에서 가상환경 활성화가 막히면 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`를 한 번 실행하세요.
-다음부터는 가상환경 활성화와 `streamlit run` 두 줄만 실행하면 됩니다.
-
-## 스마트폰에서 실행
-
-앱을 Streamlit Community Cloud(무료)에 배포하면 휴대폰 브라우저에서 접속해 앱처럼 쓸 수 있습니다.
-화면은 휴대폰 폭에 맞게 자동으로 바뀝니다.
-
-1. https://share.streamlit.io 에 GitHub 계정으로 로그인합니다.
-2. **Create app → Deploy a public app from GitHub**를 선택합니다.
-3. Repository `Hyeonwoo01/HERMES_NODE`, Branch `main`, Main file path `app/streamlit_app.py`를 입력합니다.
-4. 원하는 주소(예: `synapse-h.streamlit.app`)를 정하고 **Deploy**를 누릅니다. 첫 배포는 몇 분 걸립니다.
-5. 휴대폰 브라우저로 그 주소에 접속한 뒤 홈 화면에 추가합니다.
-   - iPhone (Safari): 공유 버튼 → **홈 화면에 추가**
-   - Android (Chrome): 오른쪽 위 ⋮ → **홈 화면에 추가** 또는 **앱 설치**
-
-`main`에 푸시하면 배포된 앱도 자동으로 갱신됩니다. 한동안 접속이 없으면 앱이 잠들며, 다시 열 때 깨우기 버튼을 누르면 됩니다.
-
-## 모바일·태블릿 전용 앱 (`application_mobile.py`)
-
-설정 메뉴 없이 **환자 정보를 넣고 의료진이 확인하면 바로 추천**하는 한 화면짜리 앱입니다.
-기본 가중치, Controlled pilot 모드, 현재 한국 시각을 자동으로 씁니다.
-
-```bash
-streamlit run application_mobile.py
-```
-
-- **입력:** 의뢰 메모를 붙여 넣거나 항목별로 직접 입력합니다.
-- **의료진 확인 (필수):** 메모에서 읽은 값을 근거 원문 표시와 함께 보여 주고, 빠지거나 범위를 벗어난 값을 표시합니다. "원문과 맞습니다"를 눌러야만 추천이 실행됩니다. 직접 입력한 값은 입력한 사람이 확인한 것으로 봅니다.
-- **추천:** Top 3 병원이 바로 나오고, 병원마다 큰 "연락" 버튼이 있습니다. 1순위가 아닌 병원은 이유를 한 번 탭해서 고릅니다.
-- **결과 기록:** 수용 / 거절을 누르고, 거절하면 그 병원을 빼고 다시 추천합니다. 받을 병원이 없으면 의료지도 연락을 안내합니다.
-
-Streamlit Community Cloud에서 **Create app**으로 앱을 하나 더 만들고 Main file path를 `application_mobile.py`로 지정하면 별도 주소로 배포됩니다.
-휴대폰·태블릿 브라우저에서 그 주소를 연 뒤 **홈 화면에 추가**하면 앱처럼 쓸 수 있습니다.
-
-## 화면 구성
-
-| 화면 | 제안서 근거 | 기능 |
-|---|---|---|
-| 개요 | Executive Case | 핵심 통계, 5단계 워크플로, 안전 경계 |
-| 🚑 전원 오케스트레이터 | §2.1–2.3, Fig. 3–4 | ① Capture 의뢰서 입력 → ② Confirm 근거 원문 하이라이트와 의료진 확인 양식 → ③④ Match·Decide Top 3 카드(ETA, 예측 수용률·구간, 신뢰도, 피드 신선도, 순위 근거, WHY #1) → 선택 / 오버라이드(사유 필수) / 의료지도 호출 → 연락 결과(수용·거절) 기록, 거절 시 재순위 → ⑤ Learn 감사 추적 + FHIR R5 번들 |
-| 🗺️ 지역 상황실 | §2.4, Fig. 5 | 활성 케이스, 1순위 수용률, 승인 시간 중앙값, 피드 지연 경보, 병원-케이스 네트워크, 병원 상태 편집(시뮬레이션) |
-| 🧮 다중 환자 동시 배정 | §3.4 | 병상 용량 + 부하 집중(공정성) 벌점 하의 전역 최적 배정(헝가리안 알고리즘) vs 선착순 탐욕 배정 |
-| 🧪 합성 디지털 트윈 | §4.2, 부록 A | Nearest-appropriate vs Synapse-H 짝지은 에피소드 시뮬레이션, 질환군별 결과, 민감도 분석, CSV 다운로드 |
-| 🛡️ 감사 로그 · 안전 | §4.4, §8.4 | 추천·결정·오버라이드·연락 결과 로그(JSONL), 파일럿 지표, 모델 카드, 위해 통제 |
-| 📈 시장 · 사업 모델 | §5–6, §10.3 | TAM/SAM/SOM 계산기, 가격 구조, 5개년 시나리오, ₩70M 사용 계획 |
-
-사이드바에서 **운영 모드**(Controlled pilot / Shadow mode — 결정 후 추천 공개), 시뮬레이션 시각, 목적 함수 가중치 w₁–w₅를 조정할 수 있습니다.
-
-## 데모 시나리오 (제안서 §4.5 최소 증거 목록)
-
-- 뇌졸중 · 중증 외상 · 소아(한국어 의뢰서) · STEMI(한국어) — 정상 매칭
-- **필수 항목 누락** → Abstain, 수동 입력 요구
-- **범위 밖 입력(OOD)** (BP 400/200, SpO₂ 130%) → 범위 검사 실패, 랭킹 차단
-- **수용 가능 병원 없음** (중증 화상) → `ESCALATE TO MEDICAL CONTROL`
-- **피드 지연** — 지역 상황실에서 시간 경과를 시뮬레이션하면 15분 초과 피드는 하향 가중·경고, 60분 초과는 제외
-
-## 엔진 구조 (`synapse_h/`)
-
-| 모듈 | 역할 |
+| 웹 앱 — 전원 오케스트레이터 | 모바일 앱 — 확인 → 추천 → 통화 결과 기록 |
 |---|---|
-| `intake.py` | Transfer Intake — 스키마 제약 추출(근거 span·신뢰도), 범위 검증, Pre-KTAS 비추론, 의료진 확인 후 `CaseRecord` 생성. `Extractor` 프로토콜로 승인된 사설/온프레미스 모델로 교체 가능 |
-| `capabilities.py` | Capability Registry — 임상 경로별 필수 역량(하드 제약), 소아 규칙 |
-| `readiness.py` | Readiness Engine — 로지스틱 수용 예측, 피드 신선도 가중, 불확실성·신뢰도 라벨 |
-| `optimizer.py` | Decision Optimizer — `w₁T + w₂C + w₃(1−A)R + w₄L + w₅U` 단일 케이스 랭킹·근거 생성·에스컬레이션, 다중 케이스 전역 배정 `+ λF(x)` |
-| `fhir.py` | FHIR R5 형태 번들 (Patient, Encounter, Observation, Condition, ServiceRequest, Organization, Task) |
-| `audit.py` | Safety & Audit — 추천·결정·오버라이드·연락 결과 로그와 모니터링 지표 |
-| `twin.py` | 합성 디지털 트윈 — 공유 수용 난수로 두 정책 비교, 민감도 분석 |
-| `data.py` | 가상 지역 네트워크(병원 8곳, 의뢰 기관 3곳)와 시나리오 |
+| ![orchestrator](docs/images/orchestrator.png) | ![mobile](docs/images/mobile.png) |
 
-디지털 트윈 결과는 계산적 타당성만 보여 줍니다. 사망률이나 임상 효과를 추정하지 않으며, 독립 구현이라 제안서 Table 9 수치와 다를 수 있습니다(같은 seed에서는 재현 가능).
+## 1. 해결하려는 문제
 
+이미 전원이 필요하다고 판단된 환자를 받을 수 있는 상급병원을 찾는 과정은 대부분 순차 전화 탐색입니다.
+국가응급의료상황실의 2017–2019년 전원 조정 요청 10,222건을 분석한 연구에서 81.2%가 조정에 성공했고, 요청 사유는
+의료인력 부족(59.8%)과 중환자실 병상 부족(30.8%)이 대부분이었으며, 지연은 병원 자원 부족과 연관되었습니다
+([BMC Emergency Medicine, 2023, doi:10.1186/s12873-023-00782-1](https://doi.org/10.1186/s12873-023-00782-1)).
+이 프로젝트는 그중 **정보 정리와 연락 순서**에서 생기는 지연을 줄이는 것을 목표로 하며, 병상·인력 부족 자체는
+해결하지 못한다는 점을 전제로 합니다.
+
+## 2. 현재 상태 — 구현 · 시뮬레이션 · 미구현
+
+| 구분 | 기능 | 상태 |
+|---|---|---|
+| ✅ 구현 | 의뢰 메모 → 구조화 필드 추출 (근거 원문 표시, 범위 검사, 부정·과거력·경로 충돌 처리) | 규칙 기반. LLM 아님 |
+| ✅ 구현 | 의료진 확인 후에만 추천 실행 (웹·모바일 모두) | |
+| ✅ 구현 | 필수 역량·병상·피드 신선도 하드 제약, Top 3 순위와 근거, 의료지도 에스컬레이션 | |
+| ✅ 구현 | 고위험 환자 이동 가드레일 → 경고가 아니라 의료지도 확인으로 에스컬레이션 | 임계값은 임상 검토 전 placeholder |
+| ✅ 구현 | 여러 환자 동시 배정 (병상 용량·쏠림 벌점, 헝가리안 알고리즘) | |
+| ✅ 구현 | 연락 결과 기록, 거절 시 재추천, 전원 의뢰 요약(SBAR) 생성 | 실제 전화·병원 시스템 연결 없음 |
+| ✅ 구현 | 감사 로그와 지표 (첫 통화 수용률 / 모델 1순위 수용률 분리, 실측 시간 / 가정 시간 분리) | 세션 메모리 저장 |
+| 🧪 시뮬레이션 | 병원 네트워크(8곳), 이동 시간, 피드 지연 | 가상 지역 |
+| 🧪 시뮬레이션 | **수용 점수** — 합성 계수의 로지스틱 기준식 | 실제 수용 확률로 보정·검증되지 않음 |
+| 🧪 시뮬레이션 | 디지털 트윈 (가장 가까운 병원 vs Synapse-H, 짝지은 2만 건 × 10 seed) | 정책은 관찰 가능한 정보만 사용 |
+| ⬜ 미구현 | 공공 응급의료 API·병원 시스템 연동, 실제 병원 데이터로 학습·검증한 모델 | |
+| ⬜ 미구현 | 로그인·권한 분리·영구 감사 저장소, 공식 FHIR validator·KR Core 적합성 검증 | |
+| ⬜ 미구현 | 현장 사용성 검증, 임상 검증, 규제 분류 | [검증 계획](docs/VALIDATION_PLAN.md) |
+
+## 3. 추천 방식
+
+1. **확인:** 메모에서 읽은 값은 의료진이 원문과 대조해 확인해야 추천에 쓰입니다. 부정 표현("뇌졸중 배제", "no facial droop"),
+   과거력("history of stroke"), 경로 충돌, 비율로 적힌 SpO₂(0.96), 불명확한 발병 시각은 자동 판단하지 않고 사람에게 묻습니다.
+2. **하드 제약:** 필요한 진료 역량이 없거나, 병상이 없거나, 피드가 60분 넘게 갱신되지 않은 병원은 거리와 무관하게 제외합니다.
+3. **비용 순위:** `이동 시간 + 승인 지연 + (1 − 수용 점수) × 재탐색 비용 + 병원 부하 + 불확실성` (분 단위 환산, 가중치 조절 가능).
+4. **안전 규칙:** 받을 병원이 없거나, 1순위 신뢰도가 낮거나, 고위험 환자(Pre-KTAS ≤ 2)의 1순위가 가장 가까운 적합 병원보다
+   10분 넘게 멀면 의료지도 확인으로 에스컬레이션합니다.
+5. **동시 배정:** 병원을 병상 슬롯으로 펼치고, 같은 병원에 몰릴수록 벌점을 더해 모든 환자 비용 합이 최소인 조합을 찾습니다.
+   중증도가 높은 환자의 지연을 더 무겁게 계산합니다.
+
+선택 이유와 한계는 [기술 의사결정 기록](docs/DECISIONS.md)에 정리했습니다.
+
+## 4. 합성 디지털 트윈 결과
+
+`python scripts/run_twin_experiment.py`로 재현됩니다. 실행 환경과 파라미터는 [`results/twin_baseline.json`](results/twin_baseline.json)에 저장됩니다.
+Synapse-H 정책은 앱이 관찰할 수 있는 정보(과거 수용률, 오래될 수 있는 보고 부하)만 앱과 같은 기준식으로 사용하며,
+실제 수용을 좌우하는 지역 혼잡 충격과 설명되지 않는 변동은 볼 수 없습니다.
+
+| 지표 (2만 짝지은 에피소드) | 가장 가까운 적합 병원 | Synapse-H | 차이 (10 seed, 95% CI) |
+|---|---|---|---|
+| 1순위 수용률 | 64.1% | 69.9% | +5.5%p [+5.3, +5.7] |
+| 평균 승인 시간 | 6.77분 | 6.31분 | −0.45분 [−0.46, −0.43] |
+| 평균 이송 시간 | 16.50분 | 16.82분 | +0.31분 [+0.31, +0.31] |
+
+거절 위험을 줄이는 대신 이송 시간이 조금 늘어나는 교환 관계입니다. 전체 표: [`results/twin_baseline.md`](results/twin_baseline.md)
+
+이 결과는 계산적 타당성만 보여 줍니다. 사망률·임상 효과·실제 병원 행태를 추정하지 않으며, 신뢰구간은 시뮬레이션 난수 변동만
+반영합니다. 사업계획서 Table 9는 이전 프로토타입 수치이므로 이 결과로 교체할 것을 권장합니다.
+
+## 5. 테스트와 품질 검증
+
+```bash
+pip install -r requirements-dev.txt
+pytest --cov=synapse_h          # 엔진 테스트 + 커버리지
+python -m pyflakes synapse_h app tests scripts application_mobile.py
+```
+
+GitHub Actions가 push·PR마다 Python 3.12/3.13에서 린트, 테스트(커버리지 90% 미만이면 실패), 트윈 재현을 실행합니다.
+테스트가 다루는 실패 상황: 필수 항목 누락, 범위 밖 값, 부정·과거력·경로 충돌, 피드 지연·확인 불가 피드, 받을 병원 없음,
+모든 후보 거절 후 재추천, 병상 용량 초과 방지, 고위험 환자 가드레일, FHIR 참조 오류, 지표 계산(미해결 케이스 포함).
+
+## 6. 실행
+
+Python 3.12 이상, 저장소 최상위 폴더에서 실행하세요. 의존성 버전은 배포 환경과 같게 고정되어 있습니다.
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate    # Windows: python -m venv .venv; .venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+streamlit run app/streamlit_app.py        # 웹 앱 (7개 화면)
+streamlit run application_mobile.py       # 모바일·태블릿 앱 (설정 없는 한 화면)
+```
+
+Streamlit Community Cloud 배포: share.streamlit.io → Create app → 저장소 `main`, Main file path에
+`app/streamlit_app.py` 또는 `application_mobile.py`. 리뷰어가 볼 수 있게 하려면 앱 **Share** 설정을 Public으로 두세요.
+
+## 7. 저장소 구조
+
+| 경로 | 내용 |
+|---|---|
+| `synapse_h/intake.py` | 구조화 추출, 범위 검증, 부정·과거력·충돌 처리, 의료진 확인 후 케이스 생성 |
+| `synapse_h/capabilities.py` | 임상 경로별 필수 역량 (하드 제약) |
+| `synapse_h/readiness.py` | 수용 점수 기준식(합성 계수), 피드 신선도 가중, 신뢰도 라벨 |
+| `synapse_h/optimizer.py` | 순위·근거·안전 규칙·에스컬레이션, 다중 환자 전역 배정 |
+| `synapse_h/audit.py` | 감사 이벤트와 지표 (실측 / 가정 분리) |
+| `synapse_h/handoff.py` | 전원 의뢰 요약(SBAR) |
+| `synapse_h/fhir.py` | FHIR R5 형태 번들 (프로토타입) + 구조 자체 점검 |
+| `synapse_h/twin.py` | 디지털 트윈, 민감도 분석, 반복 실험 신뢰구간 |
+| `synapse_h/finance.py` | 사업계획 매출 역산, 월별 현금 연결표 |
+| `app/` | 웹 앱 (개요, 오케스트레이터, 지역 상황실, 동시 배정, 트윈, 감사, 사업 모델) |
+| `application_mobile.py` | 모바일·태블릿 앱 |
+| `scripts/run_twin_experiment.py` | 트윈 기준 결과 재현 |
+
+## 8. 기여도와 도구 사용
+
+개인 프로젝트입니다. 문제 정의, 사업계획서, 요구사항과 설계 방향 결정, 결과 검토는 Hyeonwoo An이 했습니다.
+코드 구현에는 AI 코딩 도구(Claude Code)를 활용했으며, 단위 테스트와 브라우저 시나리오 점검으로 동작을 확인했습니다.
