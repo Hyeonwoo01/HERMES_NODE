@@ -17,6 +17,7 @@ import common  # noqa: E402
 st.set_page_config(page_title="SYNAPSE-H", page_icon="🚑", layout="wide")
 common.init_state()
 common.inject_css()
+common.require_login()
 
 VIEWS = Path(__file__).parent / "views"
 pages = {
@@ -27,6 +28,7 @@ pages = {
         st.Page(VIEWS / "orchestrator.py", title="전원 오케스트레이터", icon="🚑"),
         st.Page(VIEWS / "command.py", title="지역 상황실", icon="🗺️"),
         st.Page(VIEWS / "allocation.py", title="다중 환자 동시 배정", icon="🧮"),
+        st.Page(VIEWS / "live_data.py", title="공공 데이터 연동", icon="📡"),
     ],
     "검증·거버넌스 (Evidence)": [
         st.Page(VIEWS / "twin.py", title="합성 디지털 트윈", icon="🧪"),

@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from common import (INK, INK2, LINK, MUTED, SIGNAL, SIGNAL_LIGHT, STATUS, esc, header, hour,
-                    plotly_layout, tile)
+                    plotly_layout, synthetic_only, tile)
 from synapse_h.data import REGION_NAME
 from synapse_h.models import CAPABILITY_LABELS
 from synapse_h.optimizer import allocate
@@ -15,6 +15,7 @@ ss = st.session_state
 ss.setdefault("transfers", [])
 
 header("Regional Command · 지역 상황실", f"{REGION_NAME.split(' (')[0]} · {ss.clock:%H:%M}")
+synthetic_only("지역 상황실")
 
 net = ss.network
 plan = allocate(ss.concurrent, net, ss.origins, ss.weights, hour=hour())

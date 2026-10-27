@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from common import INK, SERIES, SIGNAL, header, hour, plotly_layout, tile
+from common import INK, SERIES, SIGNAL, header, hour, plotly_layout, synthetic_only, tile
 from synapse_h.capabilities import PATHWAYS
 from synapse_h.intake import build_case
 from synapse_h.optimizer import allocate, allocate_greedy
@@ -12,6 +12,7 @@ from synapse_h.optimizer import allocate, allocate_greedy
 ss = st.session_state
 
 header("Multi-case Allocation · 다중 환자 동시 배정", "Concurrent demand")
+synthetic_only("동시 배정")
 st.markdown(
     "한 환자에게 최선인 병원이 동시에 발생한 다른 환자에게 필요한 희소 자원을 소모할 수 있습니다 "
     "(제안서 §1.4 *Local optimization*). 동시 케이스는 병상 용량과 부하 집중(공정성) 벌점을 고려한 "

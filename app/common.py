@@ -8,8 +8,12 @@ from datetime import time
 import streamlit as st
 
 from synapse_h.audit import AuditLog
+from synapse_h.audit_store import SQLiteAuditStore
+from synapse_h.auth import DEMO_PERMISSIONS, ROLE_LABELS, User, UserStore
 from synapse_h.data import CONCURRENT_CASES, default_network, origins
-from synapse_h.intake import build_case
+from synapse_h.intake import RuleBasedExtractor, build_case
+from synapse_h.llm import LLMClient, LLMConfig
+from synapse_h.llm_intake import LLMExtractor
 from synapse_h.optimizer import TERM_LABELS, Weights
 
 # Warm editorial design tokens (cream canvas, ink, signal orange).
@@ -23,14 +27,51 @@ STATUS = {"good": "#1F7A4D", "warning": "#C99000", "serious": SIGNAL_LIGHT, "cri
 TERM_COLORS = dict(zip(TERM_LABELS, SERIES))
 FONT = "'Sofia Sans', 'Noto Sans KR', sans-serif"
 
+def secrets() -> dict:
+    """Deployment secrets (.streamlit/secrets.toml or Streamlit Cloud). Empty when none are set."""
+    try:
+        return {k: st.secrets[k] for k in st.secrets}
+    except Exception:  # no secrets file: public demo
+        return {}
+
+
+@st.cache_resource
+def _audit_store(path: str) -> SQLiteAuditStore:
+    return SQLiteAuditStore(path)
+
+
+@st.cache_resource
+def user_store() -> UserStore:
+    """One store per server process, so failed-login lockouts apply across browser sessions."""
+    return UserStore.from_mapping(dict(secrets().get("auth", {})).get("users", {}))
+
+
+def llm_extractor() -> LLMExtractor | None:
+    """The LLM extractor when a key is configured, else None (rule-based only)."""
+    cfg = LLMConfig.from_mapping(secrets())
+    return None if cfg.missing else LLMExtractor(LLMClient(cfg))
+
+
+def extract(note: str, use_llm: bool):
+    ex = llm_extractor() if use_llm else None
+    return (ex or RuleBasedExtractor()).extract(note)
+
+
+def make_audit() -> AuditLog:
+    """Session audit log, persisted to SQLite when AUDIT_DB_PATH is set in the secrets."""
+    path = str(secrets().get("AUDIT_DB_PATH", "")).strip()
+    return AuditLog.from_store(_audit_store(path)) if path else AuditLog()
+
+
 def init_state() -> None:
     ss = st.session_state
     if "network" not in ss:
         ss.network = default_network()
     if "origins" not in ss:
         ss.origins = origins()
+    ss.setdefault("data_source", "synthetic")
     if "audit" not in ss:
-        ss.audit = AuditLog()
+        ss.audit = make_audit()
     if "concurrent" not in ss:
         ss.concurrent = [build_case(d["case_id"], d["origin_id"], d) for d in CONCURRENT_CASES]
     ss.setdefault("case_seq", 1060)
@@ -38,10 +79,69 @@ def init_state() -> None:
     ss.setdefault("clock", time(14, 32))
     ss.setdefault("user", "전원 간호사 김OO")
     ss.setdefault("weights", Weights())
+    ss.setdefault("current_user", None)
+
+
+def auth_enabled() -> bool:
+    return user_store().enabled
+
+
+def current_user() -> User:
+    ss = st.session_state
+    if auth_enabled():
+        return ss.current_user
+    return User("demo", ss.user, "supervisor")
+
+
+def can(permission: str) -> bool:
+    if not auth_enabled():
+        return permission in DEMO_PERMISSIONS
+    u = st.session_state.current_user
+    return bool(u and u.can(permission))
+
+
+def require_login() -> None:
+    """Stop the page with a login form when accounts are configured and nobody is signed in."""
+    ss = st.session_state
+    store = user_store()
+    if not store.enabled or ss.current_user is not None:
+        return
+    st.markdown("### SYNAPSE-H 로그인")
+    st.caption("권한이 있는 의료진 계정으로 로그인하세요. 계정은 배포 환경의 Secrets에서 관리됩니다.")
+    with st.form("login"):
+        username = st.text_input("아이디")
+        password = st.text_input("비밀번호", type="password")
+        ok = st.form_submit_button("로그인", type="primary")
+    if ok:
+        if store.locked(username):
+            st.error("로그인 실패가 반복되어 5분 동안 잠겼습니다.")
+        else:
+            user = store.authenticate(username, password)
+            if user is None:
+                st.error("아이디 또는 비밀번호가 맞지 않습니다.")
+            else:
+                ss.current_user = user
+                ss.user = user.display_name
+                ss.audit.system_event("login", user=user.username, role=user.role)
+                st.rerun()
+    st.stop()
+
+
+def synthetic_only(page: str) -> None:
+    """Pages built around the synthetic region stop when another hospital list is loaded."""
+    if st.session_state.get("data_source", "synthetic") != "synthetic":
+        st.info(f"{page}은(는) 합성 지역 네트워크용 데모입니다. '공공 데이터 연동' 화면에서 합성 네트워크로 되돌리면 볼 수 있습니다.")
+        st.stop()
+
+
+def denied(permission_label: str) -> None:
+    u = current_user()
+    st.warning(f"현재 권한({ROLE_LABELS.get(u.role, u.role)})으로는 {permission_label}을(를) 할 수 없습니다.")
 
 
 def sidebar() -> None:
     ss = st.session_state
+    locked = not can("change_settings")
     with st.sidebar:
         st.markdown("### ⚙️ 운영 설정")
         mode = st.radio(
@@ -50,24 +150,35 @@ def sidebar() -> None:
             format_func=lambda m: {"visible": "추천 표시 (데모)",
                                    "shadow": "Shadow · 결정 후 공개 (데모)"}[m],
             index=0 if ss.mode == "visible" else 1,
+            disabled=locked,
             help="Shadow mode에서는 사용자가 먼저 병원을 선택한 뒤 추천이 공개되어 "
                  "진료에 영향을 주지 않고 성능을 비교합니다 (제안서 §4.3 Stage 3).",
         )
         ss.mode = mode
-        ss.user = st.text_input("사용자 (권한 있는 의료진)", ss.user)
+        if auth_enabled():
+            u = current_user()
+            st.markdown(f"**{esc(u.display_name)}** · {ROLE_LABELS.get(u.role, u.role)}")
+            if st.button("로그아웃", width="stretch"):
+                ss.audit.system_event("logout", user=u.username)
+                ss.current_user = None
+                st.rerun()
+        else:
+            ss.user = st.text_input("사용자 (공개 데모 · 로그인 미설정)", ss.user)
         ss.clock = st.time_input("시뮬레이션 시각", ss.clock, step=60 * 30)
 
-        with st.expander("⚖️ 추천 기준 중요도"):
+        with st.expander("⚖️ 추천 기준 중요도", expanded=False):
+            if not can("change_settings"):
+                st.caption("감독자만 바꿀 수 있습니다.")
             st.caption("병원 순위를 매길 때 각 기준을 얼마나 중요하게 볼지 조절합니다. 1.0이 기본값입니다.")
             w = ss.weights
             ss.weights = Weights(
-                travel=st.slider("이동 시간", 0.0, 2.0, w.travel, 0.1),
-                confirm=st.slider("승인 대기 시간", 0.0, 2.0, w.confirm, 0.1),
-                rejection=st.slider("거절 위험", 0.0, 2.0, w.rejection, 0.1),
-                load=st.slider("병원 혼잡도", 0.0, 2.0, w.load, 0.1),
-                uncertainty=st.slider("데이터 불확실성", 0.0, 2.0, w.uncertainty, 0.1),
+                travel=st.slider("이동 시간", 0.0, 2.0, w.travel, 0.1, disabled=locked),
+                confirm=st.slider("승인 대기 시간", 0.0, 2.0, w.confirm, 0.1, disabled=locked),
+                rejection=st.slider("거절 위험", 0.0, 2.0, w.rejection, 0.1, disabled=locked),
+                load=st.slider("병원 혼잡도", 0.0, 2.0, w.load, 0.1, disabled=locked),
+                uncertainty=st.slider("데이터 불확실성", 0.0, 2.0, w.uncertainty, 0.1, disabled=locked),
             )
-            if st.button("기본값으로", width="stretch"):
+            if st.button("기본값으로", width="stretch", disabled=locked):
                 ss.weights = Weights()
                 st.rerun()
 
@@ -235,6 +346,12 @@ def inject_css() -> None:
 
 DEMO_WARNING = ("합성 데이터 데모 · 병원·환자·수용 점수는 가상 예시이며 검증되지 않았습니다 · "
                 "실제 환자 정보를 입력하지 마세요 · 실제 진료 결정에 사용 금지")
+LIVE_WARNING = ("공공데이터 병상·역량 + 가정값(수용률·응답 시간) · 수용 점수는 검증되지 않았습니다 · "
+                "실제 환자 정보를 입력하지 마세요 · 실제 진료 결정에 사용 금지")
+
+
+def demo_warning() -> str:
+    return LIVE_WARNING if st.session_state.get("data_source") == "live" else DEMO_WARNING
 
 
 def header(title: str, tag: str) -> None:
@@ -243,7 +360,7 @@ def header(title: str, tag: str) -> None:
         f'<div class="sh-nav"><div class="brand"><span class="logo"><i></i>SYNAPSE-H</span>'
         f'<span class="sep"></span><span class="ttl">{esc(title)}</span></div>'
         f'<span class="sh-eyebrow">{esc(tag)}</span></div>'
-        f'<div class="sh-demo" role="note">⚠ {esc(DEMO_WARNING)}</div>', unsafe_allow_html=True)
+        f'<div class="sh-demo" role="note">⚠ {esc(demo_warning())}</div>', unsafe_allow_html=True)
 
 
 def tile(label: str, value: str, sub: str = "", color: str = INK) -> str:

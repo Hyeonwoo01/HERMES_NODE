@@ -20,12 +20,11 @@ for p in (ROOT, ROOT / "app"):
 
 import streamlit as st  # noqa: E402
 
-from common import CSS, INK, esc, header  # noqa: E402
-from synapse_h.audit import AuditLog  # noqa: E402
+from common import (CSS, INK, auth_enabled, current_user, esc, extract, header, llm_extractor,  # noqa: E402
+                    make_audit, require_login)
 from synapse_h.capabilities import PATHWAYS, required_capabilities  # noqa: E402
 from synapse_h.data import SCENARIOS, default_network, origins, travel_minutes  # noqa: E402
-from synapse_h.intake import (FIELD_LABELS, REQUIRED_FIELDS, RuleBasedExtractor,  # noqa: E402
-                              build_case)
+from synapse_h.intake import FIELD_LABELS, REQUIRED_FIELDS, build_case  # noqa: E402
 from synapse_h.models import CAPABILITY_LABELS  # noqa: E402
 from synapse_h.handoff import sbar  # noqa: E402
 from synapse_h.optimizer import Weights, rank_destinations  # noqa: E402
@@ -59,12 +58,20 @@ if "m" not in ss:
     ss.m = {"stage": "input", "values": {}}
     ss.m_network = default_network()
     ss.m_origins = origins()
-    ss.m_audit = AuditLog()
+    ss.m_audit = make_audit()
     ss.m_seq = 2000
+ss.setdefault("current_user", None)
+ss.setdefault("user", "mobile clinician")
+ss.audit = ss.m_audit  # the shared login form records sign-ins here
+require_login()
 M = ss.m
 SCEN = {s["id"]: s for s in SCENARIOS}
 OVERRIDE_REASONS = ["보호자·환자 요청", "최근 통화로 확인된 정보", "임상적 판단", "기타"]
 REFUSAL_REASONS = ["가용 병상 없음", "담당 전문의 부재", "장비 사용 중", "중환자실 포화", "기타"]
+
+
+def clinician() -> str:
+    return current_user().display_name if auth_enabled() else "mobile clinician"
 
 
 def now_kst() -> datetime:
@@ -89,12 +96,12 @@ header("응급 전원 추천", "Synthetic demo")
 # ---------------------------------------------------------------------------
 def make_case(values: dict, note: str, red_flags: list[str]):
     try:
-        case = build_case("pending", M["origin_id"], values, note, red_flags, "mobile clinician (confirmed)")
+        case = build_case("pending", M["origin_id"], values, note, red_flags, f"{clinician()} (confirmed)")
     except ValueError as e:
         return None, str(e)
     ss.m_seq += 1
     case.case_id = f"M-{ss.m_seq}"
-    ss.m_audit.case_opened(case.case_id, DEMO_MODE, "mobile clinician")
+    ss.m_audit.case_opened(case.case_id, DEMO_MODE, clinician())
     return case, ""
 
 
@@ -130,12 +137,13 @@ def input_view():
                             placeholder="예) 72세 남성, 안면마비, 편마비. 발생 40분 전. BP 160/90, HR 92, "
                                         "SpO2 96%. Pre-KTAS 2.")
         st.caption("🔒 실제 환자의 이름·등록번호·연락처 등 개인정보를 입력하지 마세요. 합성 데모용 입력만 허용됩니다.")
+        use_llm = llm_extractor() is not None and st.toggle("LLM으로 읽기 (메모가 외부 API로 전송됨)", value=False)
         if st.button("🔎 정보 추출", type="primary", width="stretch"):
             if not note.strip():
                 st.error("의뢰 메모를 입력하세요.")
             else:
                 ss.m_seq += 1
-                go("confirm", note=note, extraction=RuleBasedExtractor().extract(note), draft_id=ss.m_seq)
+                go("confirm", note=note, extraction=extract(note, use_llm), draft_id=ss.m_seq)
 
     with tab_form:
         with st.form("direct"):

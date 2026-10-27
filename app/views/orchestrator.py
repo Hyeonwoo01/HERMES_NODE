@@ -8,14 +8,13 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from common import (INK, SIGNAL, TERM_COLORS, esc, header, hour, next_case_id,
-                    plotly_layout)
+from common import (INK, SIGNAL, TERM_COLORS, can, denied, esc, extract, header, hour,
+                    llm_extractor, next_case_id, plotly_layout)
 from synapse_h.capabilities import PATHWAYS, required_capabilities
 from synapse_h.data import SCENARIOS, travel_minutes
-from synapse_h.fhir import case_bundle, validate_bundle
+from synapse_h.fhir import case_bundle, kr_core_bundle, schema_issues, validate_bundle
 from synapse_h.handoff import sbar
-from synapse_h.intake import (FIELD_LABELS, OPTIONAL_FIELDS, REQUIRED_FIELDS,
-                              RuleBasedExtractor, build_case)
+from synapse_h.intake import FIELD_LABELS, OPTIONAL_FIELDS, REQUIRED_FIELDS, build_case
 from synapse_h.models import CAPABILITY_LABELS
 from synapse_h.optimizer import TERM_LABELS, eligibility, rank_destinations
 from synapse_h.readiness import CONFIDENCE_KO, predict_readiness
@@ -33,7 +32,8 @@ def reset_case():
 
 
 def mode_label():
-    return "Synthetic demo · Shadow" if ss.mode == "shadow" else "Synthetic demo · 추천 표시"
+    data = "Public data" if ss.data_source == "live" else "Synthetic demo"
+    return f"{data} · Shadow" if ss.mode == "shadow" else f"{data} · 추천 표시"
 
 
 header("Transfer Orchestrator · 전원 오케스트레이터", mode_label())
@@ -44,17 +44,33 @@ header("Transfer Orchestrator · 전원 오케스트레이터", mode_label())
 # ---------------------------------------------------------------------------
 def capture():
     st.subheader("① Capture — 의뢰 정보 입력")
-    st.caption("의뢰서, 활력징후, Pre-KTAS를 자유 텍스트로 입력하세요. 언어 모델은 필드를 *제안*할 뿐이며, "
+    st.caption("의뢰서, 활력징후, Pre-KTAS를 자유 텍스트로 입력하세요. 추출기는 필드를 *제안*할 뿐이며, "
                "결정적 검증기와 의료진이 확인합니다.")
     c1, c2 = st.columns([2, 1])
     sid = c1.selectbox("데모 시나리오 (합성 예시)", list(SCEN), format_func=lambda k: SCEN[k]["title"])
     origin_ids = list(ss.origins)
-    oid = c2.selectbox("의뢰 기관", origin_ids, index=origin_ids.index(SCEN[sid]["origin"]),
-                       format_func=lambda k: ss.origins[k].name, key=f"origin_{sid}")
+    default = SCEN[sid]["origin"]
+    oid = c2.selectbox("의뢰 기관", origin_ids, index=origin_ids.index(default) if default in origin_ids else 0,
+                       format_func=lambda k: ss.origins[k].name, key=f"origin_{sid}_{ss.data_source}")
     note = st.text_area("의뢰서 (Referral note)", SCEN[sid]["note"], height=130, key=f"note_{sid}")
     st.caption("🔒 실제 환자의 이름·등록번호·연락처 등 개인정보를 입력하지 마세요. 합성 데모용 입력만 허용됩니다.")
+    use_llm = False
+    if llm_extractor() is not None:
+        use_llm = st.toggle("LLM으로 추출 (메모가 외부 API로 전송됨 · 합성 메모만)", value=False,
+                            help="LLM이 제안한 값은 원문 근거 확인과 규칙 기반 교차 확인을 거칩니다. "
+                                 "개인정보로 보이는 값이 있으면 보내지 않습니다.")
+    else:
+        st.caption("추출기: 규칙 기반 (LLM API 키가 설정되지 않음)")
+    with st.expander("사용성 평가 기록 (모의 케이스 세션에서만)"):
+        st.caption("참여자 코드를 넣으면 이 케이스의 감사 로그에 표시되어 `scripts/analyze_usability.py`로 "
+                   "기존 방식과 비교할 수 있습니다. 이름 대신 코드만 쓰세요.")
+        c1, c2 = st.columns(2)
+        ss.study_participant = c1.text_input("참여자 코드 (예: P03)", ss.get("study_participant", "")).strip()
+        study_scenario = c2.text_input("시나리오 번호", sid)
     if st.button("🔎 구조화 추출 실행", type="primary"):
-        O.update(stage="confirm", note=note, origin_id=oid, intake=RuleBasedExtractor().extract(note))
+        O.update(stage="confirm", note=note, origin_id=oid, intake=extract(note, use_llm),
+                 study={"study_participant": ss.study_participant, "study_scenario": study_scenario.strip()}
+                 if ss.study_participant else {})
         st.rerun()
 
 
@@ -78,7 +94,7 @@ def confirm():
     res = O["intake"]
     st.subheader("② Confirm — 추출 필드 확인 (Human confirmation)")
     st.markdown(f'<div class="sh-case">{highlight(res.note, res.fields)}</div>', unsafe_allow_html=True)
-    st.caption("노란 표시는 각 필드의 근거 원문(evidence span)입니다.")
+    st.caption(f"노란 표시는 각 필드의 근거 원문(evidence span)입니다. 추출기: {res.source}")
 
     rows = []
     for name in REQUIRED_FIELDS + OPTIONAL_FIELDS:
@@ -101,6 +117,9 @@ def confirm():
         st.error(f"**자동 추출만으로는 진행할 수 없습니다 (Abstain).** {res.abstain_message}. "
                  "아래 양식에서 원문 또는 의뢰 기관 확인 후 직접 입력하세요.")
 
+    if not can("confirm_case"):
+        denied("케이스 확인")
+        return
     f = res.fields
     with st.form("confirm_form"):
         st.markdown("**의료진 확인 양식** — 모든 값은 저장 전에 다시 검증됩니다.")
@@ -147,7 +166,7 @@ def confirm():
             st.error(f"검증 실패: {e}")
             return
         case.case_id = next_case_id()
-        ss.audit.case_opened(case.case_id, ss.mode, ss.user)
+        ss.audit.case_opened(case.case_id, ss.mode, ss.user, **O.get("study", {}))
         n_conf = sum(values[k] is not None for k in REQUIRED_FIELDS + OPTIONAL_FIELDS)
         O.update(stage="decide", case=case, refused=set(), contacts=[], revealed=False,
                  fields_confirmed=f"{n_conf}/{len(REQUIRED_FIELDS + OPTIONAL_FIELDS)}")
@@ -245,6 +264,12 @@ def decide():
     full = rank_destinations(case, ss.network, origin, ss.weights, hour(), O["refused"], top_k=99)
     rank_of = {o.hospital.id: o.rank for o in full.options}
 
+    if not can("decide"):
+        denied("병원 선택")
+        for o in rec.options:
+            st.markdown(option_card(o, o.rank == 1), unsafe_allow_html=True)
+        return
+
     hide = ss.mode == "shadow" and not O.get("revealed")
     if hide and eligible:
         st.subheader("Shadow mode — 추천을 보기 전에 결정을 기록하세요")
@@ -336,6 +361,9 @@ def contact():
                "아래 전원 의뢰 요약을 통화나 메시지에 그대로 사용할 수 있습니다.")
     st.code(sbar(O["case"], ss.origins[O["case"].origin_id].name,
                  contacts=[c["hospital"] for c in O["contacts"]] + [h.name]), language=None, wrap_lines=True)
+    if not can("record_outcome"):
+        denied("통화 결과 기록")
+        return
     n_prev = len(O["contacts"])
     st.markdown(f"연락 시도 **{n_prev + 1}회차** · 추천 순위 **{O['contact_rank']}** · "
                 f"전원 데스크 평균 응답 {h.confirm_delay_min:.0f}분")
@@ -398,18 +426,25 @@ def done():
     st.code(sbar(case, ss.origins[case.origin_id].name, h, [c["hospital"] for c in O["contacts"]]), language=None, wrap_lines=True)
 
     bundle = case_bundle(case, h)
-    issues = validate_bundle(bundle)
-    with st.expander("🧾 FHIR R5 형태 번들 (프로토타입 · 공식 검증기·KR Core 미검증)"):
+    kr = kr_core_bundle(case, h)
+    issues = validate_bundle(bundle) + validate_bundle(kr)
+    schema = schema_issues(bundle)
+    with st.expander("🧾 FHIR 번들 (R5 · R4 KR Core 1.0.2)"):
         if issues:
             st.error("구조 점검 실패: " + "; ".join(issues))
+        elif schema:
+            st.error("R5 스키마 검증 실패: " + "; ".join(schema[:5]))
         else:
-            st.caption("구조 자체 점검 통과 (참조 연결·필수 항목). 공식 FHIR validator와 KR Core 프로파일 검증은 아직 하지 않았습니다.")
+            st.caption("구조 자체 점검과 R5 공식 스키마 검증(fhir.resources)을 통과했습니다. 같은 형식의 예시 번들은 "
+                       "CI에서 HL7 공식 validator로 R5와 KR Core 1.0.2 프로파일 검증을 받습니다. "
+                       "환자는 가명이며 출생연도는 나이로 추정한 값입니다.")
         st.json(bundle, expanded=False)
-    c1, c2 = st.columns(2)
-    c1.download_button("FHIR 번들 다운로드 (.json)", json.dumps(bundle, ensure_ascii=False, indent=2),
-                       file_name=f"{case.case_id}_bundle.json", mime="application/fhir+json",
-                       width="stretch")
-    if c2.button("➕ 새 케이스", type="primary", width="stretch"):
+    c1, c2, c3 = st.columns(3)
+    c1.download_button("FHIR R5 (.json)", json.dumps(bundle, ensure_ascii=False, indent=2),
+                       file_name=f"{case.case_id}_r5.json", mime="application/fhir+json", width="stretch")
+    c2.download_button("KR Core R4 (.json)", json.dumps(kr, ensure_ascii=False, indent=2),
+                       file_name=f"{case.case_id}_krcore_r4.json", mime="application/fhir+json", width="stretch")
+    if c3.button("➕ 새 케이스", type="primary", width="stretch"):
         reset_case()
         st.rerun()
 

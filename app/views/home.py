@@ -70,10 +70,11 @@ st.markdown('<span class="sh-eyebrow">Product boundaries</span>', unsafe_allow_h
 st.markdown("## Non-goals are product requirements")
 st.table({
     "Non-goal": ["자율 출동 없음", "검증되지 않은 자유텍스트 추론 없음", "생존 약속 없음",
-                 "숨겨진 최적화 없음", "공개 병원 순위표 없음", "소비자용 LLM에 건강정보 없음"],
+                 "숨겨진 최적화 없음", "공개 병원 순위표 없음", "실제 환자 정보를 외부 LLM에 보내지 않음"],
     "설계 통제": ["권한 있는 사람이 목적지를 선택·확정", "추출 필드는 스키마·범위 검사 후 사람이 확인",
                "운영 준비도만 예측; 생존 모델은 별도 임상 검증 필요", "주요 요인·불확실성·오래된 입력·대안을 모두 표시",
-               "운영 예측은 맥락·권한 제한, 평판 점수화 금지", "승인된 사설/온프레미스 추론 환경만 허용"],
+               "운영 예측은 맥락·권한 제한, 평판 점수화 금지",
+               "LLM 추출은 선택 사항·합성 메모 전용, 식별정보 형식이면 전송 차단 · 실제 운영은 승인된 사설/온프레미스 추론 환경만"],
 })
 
 st.markdown(
@@ -81,8 +82,9 @@ st.markdown(
     '<div><div class="h">Safety boundary</div><p>Synapse-H는 자율적으로 출동 지시·진단·병상 배정을 하거나 '
     "생존을 약속하지 않습니다. 환자별 영향은 후향적 검증, Shadow mode 평가, 임상 승인, 식약처 분류 결정 이후에만 "
     "도입됩니다.</p></div>"
-    '<div><div class="h">Data</div><p>모든 병원·환자 값은 가상 예시입니다. 실제 환자 데이터나 실제 기관 정보를 '
-    "쓰지 않으며 임상 검증을 거치지 않았습니다.</p></div>"
+    '<div><div class="h">Data</div><p>기본 병원·환자 값은 가상 예시입니다. \'공공 데이터 연동\'을 켜면 병원 병상·역량은 '
+    "국립중앙의료원 공공데이터를 쓰지만 수용률·응답 시간은 가정값입니다. 실제 환자 데이터는 쓰지 않으며 임상 검증을 "
+    "거치지 않았습니다.</p></div>"
     '<div><div class="h">Source</div><p>Hyeonwoo An, SYNAPSE-H Business Proposal, International Youth '
     "Entrepreneurship Olympiad 2026 (University Division).</p></div></div>"
     '<div class="rule"></div><div class="fine">SYNAPSE-H · Human-supervised decision intelligence for emergency '

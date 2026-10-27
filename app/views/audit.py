@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import streamlit as st
 
-from common import header, tile
+from common import auth_enabled, can, header, tile
 from synapse_h.models import MODEL_VERSION
 from synapse_h.readiness import COEF, STALE_THRESHOLD_MIN, UNVERIFIABLE_MIN
 
@@ -43,10 +43,24 @@ c[2].markdown(tile("가정 기준 승인 시간", num(m["median_assumed_min"], "
 c[3].markdown(tile("에스컬레이션", str(m["escalations"]), "의료지도 호출/권고 케이스"), unsafe_allow_html=True)
 st.write("")
 
+store = ss.audit.store
+if store is None:
+    st.caption("저장 방식: 이 브라우저 세션 메모리 (공개 데모). 배포 Secrets에 `AUDIT_DB_PATH`를 지정하면 "
+               "수정·삭제가 막힌 SQLite 파일에 해시 체인으로 저장됩니다.")
+else:
+    problems = store.verify()
+    if problems:
+        st.error("감사 로그 무결성 검사 실패: " + "; ".join(problems[:5]))
+    else:
+        st.caption(f"저장 방식: 추가만 가능한 SQLite (`{store.path}`) · 해시 체인 검사 통과 · 이벤트 {len(ss.audit.events)}건")
+st.caption("로그인: " + ("계정·역할 사용 중" if auth_enabled() else "미설정 (공개 데모 — 누구나 모든 기능 사용)"))
+
 tab_log, tab_pilot, tab_card, tab_hazard = st.tabs(["감사 로그", "파일럿 목표 지표", "모델 카드", "위해 통제"])
 
 with tab_log:
-    if not ss.audit.events:
+    if not can("view_audit"):
+        st.info("전체 감사 로그는 감독자만 볼 수 있습니다. 위 지표는 모든 역할에 표시됩니다.")
+    elif not ss.audit.events:
         st.info("아직 기록이 없습니다. 전원 오케스트레이터에서 케이스를 처리하면 추천·결정·오버라이드·연락 결과가 "
                 "시간순으로 남습니다.")
     else:
@@ -60,6 +74,8 @@ with tab_log:
             if e["event"] == "contact_outcome":
                 return (f'{e["hospital"]} (추천 {e.get("recommended_rank")}순위) → '
                         f'{"수용" if e["accepted"] else "거절"}')
+            if e["event"] in ("login", "logout"):
+                return f'{e.get("user", "")} {e.get("role", "")}'.strip()
             return "의료진이 필드 확인 · 요청 시각 기록"
 
         df = pd.DataFrame([{
@@ -69,9 +85,10 @@ with tab_log:
             "사용자": e.get("user", ""), "지연(ms)": e.get("latency_ms"),
         } for e in ss.audit.events])
         st.dataframe(df, hide_index=True, width="stretch")
-        st.download_button("감사 로그 다운로드 (.jsonl)",
-                           "\n".join(json.dumps(e, ensure_ascii=False) for e in ss.audit.events),
-                           file_name="synapse_h_audit.jsonl", mime="application/x-ndjson")
+        if can("export_audit"):
+            st.download_button("감사 로그 다운로드 (.jsonl)",
+                               "\n".join(json.dumps(e, ensure_ascii=False) for e in ss.audit.events),
+                               file_name="synapse_h_audit.jsonl", mime="application/x-ndjson")
 
 with tab_pilot:
     st.caption("제안서 Table 11 — 아래 임계값은 경영진 제안이며 달성 결과가 아닙니다. 데이터 분석 전 임상·통계 "
@@ -107,7 +124,7 @@ with tab_card:
 | 계수 | {", ".join(f"{k}={v:+.2f}" for k, v in COEF.items())} |
 | 결측/지연 처리 | 피드 {STALE_THRESHOLD_MIN:.0f}분 초과 → 사전확률(0.5)로 수축·불확실성 확대·경고; {UNVERIFIABLE_MIN:.0f}분 초과 → 전화 확인 전 제외 |
 | Abstention | 필수 필드 누락/범위 밖 → 랭킹 차단; 적격 병원 없음 → 의료지도; 1순위 신뢰도 낮음 → 의료지도 권고 |
-| 알려진 한계 | 보정·하위집단 성능 미검증; 소규모 합성 네트워크; 규칙 기반 추출은 표현 다양성에 취약 |
+| 알려진 한계 | 보정·하위집단 성능 미검증; 소규모 합성 네트워크; 규칙 기반 추출은 표현 다양성에 취약 (합성 메모 40건 중 표현을 바꾼 10건에서 필드 71% 정답, 잘못된 값 제안 0건). LLM 추출기는 선택 사항이며 근거 원문 검증과 규칙 교차 확인을 거침 |
 | 보고 기준 | 예측 모델 TRIPOD+AI, 초기 임상 평가 DECIDE-AI, GMLP 원칙 |
 """)
 
@@ -125,7 +142,8 @@ with tab_hazard:
         ["자동화 편향", "대안·근거 표시; 오버라이드·일치율 측정", "UX 재설계 / 범위 제한",
          "✅ Shadow mode + 오버라이드 사유"],
         ["불균등한 성능", "하위집단 평가, 공정성 제약", "재보정·제한·중단", "◻ 파트너 데이터 필요"],
-        ["사이버 사고", "분리, 로깅, 백업, 대응 플레이북", "격리; 수동 워크플로로 안전 실패", "◻ 운영 단계"],
+        ["사이버 사고", "분리, 로깅, 백업, 대응 플레이북", "격리; 수동 워크플로로 안전 실패",
+         "◐ 계정·역할, 추가 전용 감사 로그(해시 체인) 구현 · 분리·백업·대응 절차는 운영 단계"],
         ["시스템 불가용", "수동 대체 절차 문서화; 가동 모니터링", "기존 전화/공공 워크플로로 복귀", "◻ 운영 단계"],
     ], columns=["위해", "예방/감지", "안전한 대응", "데모 구현"]), hide_index=True, width="stretch")
     st.markdown('<div class="sh-boundary"><span class="sh-eyebrow">Governance promise</span>시스템은 불확실해도 됩니다. 불완전하거나 '
