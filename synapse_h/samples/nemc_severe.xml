@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic sample in the provider's response format. Invented facilities; not real data. -->
+<response>
+  <header><resultCode>00</resultCode><resultMsg>NORMAL SERVICE.</resultMsg></header>
+  <body>
+    <items>
+      <item><hpid>X9000001</hpid><dutyName>가상 한울권역의료센터</dutyName><MKioskTy1>Y</MKioskTy1><MKioskTy2>Y</MKioskTy2><MKioskTy3>Y</MKioskTy3><MKioskTy11>Y</MKioskTy11><MKioskTy19>불가능</MKioskTy19><MKioskTy28>Y</MKioskTy28></item>
+      <item><hpid>X9000002</hpid><dutyName>가상 미래병원</dutyName><MKioskTy1>Y</MKioskTy1><MKioskTy2>Y</MKioskTy2><MKioskTy11>Y</MKioskTy11><MKioskTy19>정보미제공</MKioskTy19><MKioskTy28>Y</MKioskTy28></item>
+      <item><hpid>X9000003</hpid><dutyName>가상 서부대학교병원</dutyName><MKioskTy1>Y</MKioskTy1><MKioskTy2>Y</MKioskTy2><MKioskTy11>Y</MKioskTy11><MKioskTy19>N</MKioskTy19><MKioskTy28>Y</MKioskTy28></item>
+      <item><hpid>X9000004</hpid><dutyName>가상 다온종합병원</dutyName><MKioskTy1>정보미제공</MKioskTy1><MKioskTy2>정보미제공</MKioskTy2><MKioskTy11>Y</MKioskTy11><MKioskTy28>Y</MKioskTy28></item>
+      <item><hpid>X9000005</hpid><dutyName>가상 강서심장센터</dutyName><MKioskTy1>Y</MKioskTy1><MKioskTy2>불가능</MKioskTy2><MKioskTy11>정보미제공</MKioskTy11><MKioskTy28>Y</MKioskTy28></item>
+      <item><hpid>X9000006</hpid><dutyName>가상 새빛의원</dutyName><MKioskTy28>Y</MKioskTy28></item>
+    </items>
+    <numOfRows>100</numOfRows><pageNo>1</pageNo><totalCount>6</totalCount>
+  </body>
+</response>

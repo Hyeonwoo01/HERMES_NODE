@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic sample in the provider's response format. Invented facilities; not real data. -->
+<response>
+  <header><resultCode>00</resultCode><resultMsg>NORMAL SERVICE.</resultMsg></header>
+  <body>
+    <items>
+      <item><hpid>X9000001</hpid><dutyName>가상 한울권역의료센터</dutyName><dutyEmclsName>권역응급의료센터</dutyEmclsName><dutyAddr>가상시 가상구 1</dutyAddr><dutyTel3>000-0000-0001</dutyTel3><wgs84Lat>37.6420</wgs84Lat><wgs84Lon>126.8320</wgs84Lon></item>
+      <item><hpid>X9000002</hpid><dutyName>가상 미래병원</dutyName><dutyEmclsName>지역응급의료센터</dutyEmclsName><dutyAddr>가상시 가상구 2</dutyAddr><dutyTel3>000-0000-0002</dutyTel3><wgs84Lat>37.6580</wgs84Lat><wgs84Lon>126.7900</wgs84Lon></item>
+      <item><hpid>X9000003</hpid><dutyName>가상 서부대학교병원</dutyName><dutyEmclsName>권역응급의료센터</dutyEmclsName><dutyAddr>가상시 가상구 3</dutyAddr><dutyTel3>000-0000-0003</dutyTel3><wgs84Lat>37.6950</wgs84Lat><wgs84Lon>126.7150</wgs84Lon></item>
+      <item><hpid>X9000004</hpid><dutyName>가상 다온종합병원</dutyName><dutyEmclsName>지역응급의료기관</dutyEmclsName><dutyAddr>가상시 가상구 4</dutyAddr><dutyTel3>000-0000-0004</dutyTel3><wgs84Lat>37.6100</wgs84Lat><wgs84Lon>126.7700</wgs84Lon></item>
+      <item><hpid>X9000005</hpid><dutyName>가상 강서심장센터</dutyName><dutyEmclsName>지역응급의료센터</dutyEmclsName><dutyAddr>가상시 가상구 5</dutyAddr><dutyTel3>000-0000-0005</dutyTel3><wgs84Lat>37.5900</wgs84Lat><wgs84Lon>126.8500</wgs84Lon></item>
+      <item><hpid>X9000006</hpid><dutyName>가상 새빛의원</dutyName><dutyEmclsName>응급실운영신고기관</dutyEmclsName><dutyAddr>가상시 가상구 6</dutyAddr><dutyTel3>000-0000-0006</dutyTel3><wgs84Lat>37.6300</wgs84Lat><wgs84Lon>126.7300</wgs84Lon></item>
+      <item><hpid>X9000007</hpid><dutyName>가상 북부지역병원</dutyName><dutyEmclsName>지역응급의료기관</dutyEmclsName><dutyAddr>가상시 가상구 7</dutyAddr><dutyTel3>000-0000-0007</dutyTel3><wgs84Lat>37.6700</wgs84Lat><wgs84Lon>126.7600</wgs84Lon></item>
+    </items>
+    <numOfRows>100</numOfRows><pageNo>1</pageNo><totalCount>7</totalCount>
+  </body>
+</response>

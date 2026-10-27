@@ -1,0 +1,165 @@
+{
+  "generated_at": "2026-10-27T08:06:38+00:00",
+  "llm_model": null,
+  "dataset": "evals/intake_notes.json",
+  "results": {
+    "rule-based": {
+      "all": {
+        "notes": 40,
+        "fields": 320,
+        "correct": 295,
+        "unsafe": 0,
+        "missed": 25,
+        "accuracy": 0.921875,
+        "unsafe_rate": 0.0,
+        "per_field": {
+          "age": {
+            "correct": 37,
+            "unsafe": 0,
+            "missed": 3
+          },
+          "sex": {
+            "correct": 34,
+            "unsafe": 0,
+            "missed": 6
+          },
+          "pathway": {
+            "correct": 34,
+            "unsafe": 0,
+            "missed": 6
+          },
+          "ktas": {
+            "correct": 40,
+            "unsafe": 0,
+            "missed": 0
+          },
+          "onset_min": {
+            "correct": 33,
+            "unsafe": 0,
+            "missed": 7
+          },
+          "sbp": {
+            "correct": 39,
+            "unsafe": 0,
+            "missed": 1
+          },
+          "hr": {
+            "correct": 39,
+            "unsafe": 0,
+            "missed": 1
+          },
+          "spo2": {
+            "correct": 39,
+            "unsafe": 0,
+            "missed": 1
+          }
+        },
+        "unsafe_examples": []
+      },
+      "written with the rules (n01–n30)": {
+        "notes": 30,
+        "fields": 240,
+        "correct": 238,
+        "unsafe": 0,
+        "missed": 2,
+        "accuracy": 0.9916666666666667,
+        "unsafe_rate": 0.0,
+        "per_field": {
+          "age": {
+            "correct": 30,
+            "unsafe": 0,
+            "missed": 0
+          },
+          "sex": {
+            "correct": 29,
+            "unsafe": 0,
+            "missed": 1
+          },
+          "pathway": {
+            "correct": 30,
+            "unsafe": 0,
+            "missed": 0
+          },
+          "ktas": {
+            "correct": 30,
+            "unsafe": 0,
+            "missed": 0
+          },
+          "onset_min": {
+            "correct": 30,
+            "unsafe": 0,
+            "missed": 0
+          },
+          "sbp": {
+            "correct": 29,
+            "unsafe": 0,
+            "missed": 1
+          },
+          "hr": {
+            "correct": 30,
+            "unsafe": 0,
+            "missed": 0
+          },
+          "spo2": {
+            "correct": 30,
+            "unsafe": 0,
+            "missed": 0
+          }
+        },
+        "unsafe_examples": []
+      },
+      "varied phrasing (n31–n40)": {
+        "notes": 10,
+        "fields": 80,
+        "correct": 57,
+        "unsafe": 0,
+        "missed": 23,
+        "accuracy": 0.7125,
+        "unsafe_rate": 0.0,
+        "per_field": {
+          "age": {
+            "correct": 7,
+            "unsafe": 0,
+            "missed": 3
+          },
+          "sex": {
+            "correct": 5,
+            "unsafe": 0,
+            "missed": 5
+          },
+          "pathway": {
+            "correct": 4,
+            "unsafe": 0,
+            "missed": 6
+          },
+          "ktas": {
+            "correct": 10,
+            "unsafe": 0,
+            "missed": 0
+          },
+          "onset_min": {
+            "correct": 3,
+            "unsafe": 0,
+            "missed": 7
+          },
+          "sbp": {
+            "correct": 10,
+            "unsafe": 0,
+            "missed": 0
+          },
+          "hr": {
+            "correct": 9,
+            "unsafe": 0,
+            "missed": 1
+          },
+          "spo2": {
+            "correct": 9,
+            "unsafe": 0,
+            "missed": 1
+          }
+        },
+        "unsafe_examples": []
+      }
+    }
+  }
+}

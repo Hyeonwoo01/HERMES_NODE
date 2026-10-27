@@ -2,9 +2,9 @@
 
 The extractor *proposes* fields; deterministic validators check range and
 presence; a clinician confirms before anything reaches the ranking engine.
-The default extractor is rule-based so the demo runs offline. Any approved
-private / on-premise model can replace it as long as it returns the same
-schema (see ``Extractor``).
+The default extractor is rule-based so the demo runs offline. The optional
+LLM extractor (``llm_intake.LLMExtractor``) returns the same schema and is
+checked against the note and this extractor before anything is shown.
 """
 
 from __future__ import annotations
@@ -111,6 +111,7 @@ class IntakeResult:
     fields: dict[str, ExtractedField]
     red_flags: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)  # context the clinician should see (negation, history, conflict)
+    source: str = "rule"  # which extractor produced the proposals
 
     @property
     def missing(self) -> list[str]:

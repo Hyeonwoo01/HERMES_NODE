@@ -27,3 +27,43 @@ jobs:
         run: python -m pytest -q --cov=synapse_h --cov-report=term-missing --cov-fail-under=90
       - name: Reproduce digital-twin baseline (quick check)
         run: python scripts/run_twin_experiment.py --episodes 2000 --reps 3 --out /tmp/twin
+      - name: Extractor comparison and calibration pipeline (offline)
+        run: |
+          python scripts/compare_extractors.py --out /tmp/eval
+          python scripts/evaluate_calibration.py --out /tmp/eval
+
+  fhir-validation:
+    # Official HL7 validator: FHIR R5 bundles and FHIR R4 bundles against KR Core 1.0.2.
+    # Terminology bindings are not checked (-tx n/a) so the job does not depend on tx.fhir.org.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VALIDATOR_VERSION: "6.9.4"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Export example bundles
+        run: python scripts/export_fhir_examples.py --out fhir-out
+      - uses: actions/cache@v4
+        with:
+          path: |
+            validator_cli.jar
+            ~/.fhir/packages
+          key: fhir-validator-${{ env.VALIDATOR_VERSION }}-krcore-1.0.2
+      - name: Download validator
+        run: test -f validator_cli.jar || curl -fsSL -o validator_cli.jar "https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar"
+      - name: Validate R5
+        run: |
+          java -jar validator_cli.jar fhir-out/r5 -version 5.0.0 -tx n/a > r5.txt 2>&1 || true
+          grep -E "^-- |FAILURE|Success|Error @" r5.txt | cut -c1-300
+          ! grep -q "FAILURE" r5.txt && grep -q "Success" r5.txt
+      - name: Validate R4 against KR Core 1.0.2
+        run: |
+          java -jar validator_cli.jar fhir-out/r4 -version 4.0.1 -ig hl7.fhir.kr.core#1.0.2 -tx n/a > r4.txt 2>&1 || true
+          grep -E "^-- |FAILURE|Success|Error @" r4.txt | cut -c1-300
+          ! grep -q "FAILURE" r4.txt && grep -q "Success" r4.txt

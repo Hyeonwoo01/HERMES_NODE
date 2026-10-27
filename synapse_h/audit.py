@@ -5,8 +5,9 @@ Every event carries a wall-clock time so operational metrics are *measured*
 from the trace. The 3-minute / 6-minute contact convention of the digital
 twin is reported separately and always labelled as an assumption.
 
-The log lives in the Streamlit session (synthetic demo). A real deployment
-needs authenticated users, role separation and durable, append-only storage.
+Events live in memory unless a ``store`` is given; ``audit_store.SQLiteAuditStore``
+persists them append-only with a hash chain. Users and roles come from
+``auth``.
 """
 
 from __future__ import annotations
@@ -15,12 +16,14 @@ import statistics
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 from .models import MODEL_VERSION, Recommendation
 
 ENVIRONMENT = "synthetic-demo"
 FIRST_CONTACT_MIN = 3.0  # digital-twin assumption, never mixed with measured time
 FAILED_CONTACT_MIN = 6.0
+SYSTEM_CASE = "-"
 
 
 @dataclass
@@ -60,6 +63,11 @@ class CaseTrace:
 class AuditLog:
     events: list[dict] = field(default_factory=list)
     environment: str = ENVIRONMENT
+    store: Any = None  # optional durable store with append(entry) -> entry and load()
+
+    @classmethod
+    def from_store(cls, store, environment: str = ENVIRONMENT) -> "AuditLog":
+        return cls(events=store.load(), environment=environment, store=store)
 
     def _add(self, case_id: str, event: str, at: float | None = None, **data) -> dict:
         t = time.time() if at is None else at
@@ -73,12 +81,21 @@ class AuditLog:
             "model_version": MODEL_VERSION,
             **data,
         }
+        if self.store is not None:
+            entry = self.store.append(entry)
         self.events.append(entry)
         return entry
 
-    def case_opened(self, case_id: str, mode: str, user: str = "", at: float | None = None) -> dict:
-        """The clinician confirmed the case fields; the request clock starts here."""
-        return self._add(case_id, "case_opened", at=at, mode=mode, user=user)
+    def system_event(self, event: str, at: float | None = None, **data) -> dict:
+        """Events that belong to no case (login, logout, data source changes)."""
+        return self._add(SYSTEM_CASE, event, at=at, **data)
+
+    def case_opened(self, case_id: str, mode: str, user: str = "", at: float | None = None, **meta) -> dict:
+        """The clinician confirmed the case fields; the request clock starts here.
+
+        ``meta`` carries optional study tags (participant code, scenario) for usability sessions.
+        """
+        return self._add(case_id, "case_opened", at=at, mode=mode, user=user, **meta)
 
     def recommendation(self, rec: Recommendation, mode: str, at: float | None = None) -> dict:
         return self._add(
@@ -116,11 +133,13 @@ class AuditLog:
 
     # ---- per-case reconstruction -------------------------------------------
     def case_ids(self) -> list[str]:
-        return list(dict.fromkeys(e["case_id"] for e in self.events))
+        return list(dict.fromkeys(e["case_id"] for e in self.events if e["case_id"] != SYSTEM_CASE))
 
     def traces(self) -> list[CaseTrace]:
         out: dict[str, CaseTrace] = {}
         for e in self.events:
+            if e["case_id"] == SYSTEM_CASE:
+                continue
             tr = out.get(e["case_id"])
             if tr is None:
                 tr = out[e["case_id"]] = CaseTrace(e["case_id"], e["t"])

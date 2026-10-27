@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic sample in the provider's response format. hvidate NOW-n is replaced with the current KST time minus n minutes. -->
+<response>
+  <header><resultCode>00</resultCode><resultMsg>NORMAL SERVICE.</resultMsg></header>
+  <body>
+    <items>
+      <item><hpid>X9000001</hpid><dutyName>가상 한울권역의료센터</dutyName><hvidate>NOW-3</hvidate><hvec>4</hvec><hvs01>30</hvs01><hvoc>3</hvoc><hvicc>2</hvicc><hvcc>1</hvcc><hvncc>0</hvncc><hv28>2</hv28><hvctayn>Y</hvctayn><hvmriayn>Y</hvmriayn><hvangioayn>Y</hvangioayn></item>
+      <item><hpid>X9000002</hpid><dutyName>가상 미래병원</dutyName><hvidate>NOW-6</hvidate><hvec>2</hvec><hvs01>18</hvs01><hvoc>1</hvoc><hvicc>1</hvicc><hvcc>1</hvcc><hv28/><hvctayn>Y</hvctayn><hvmriayn>Y</hvmriayn><hvangioayn>Y</hvangioayn></item>
+      <item><hpid>X9000003</hpid><dutyName>가상 서부대학교병원</dutyName><hvidate>NOW-2</hvidate><hvec>6</hvec><hvs01>34</hvs01><hvoc>4</hvoc><hvicc>3</hvicc><hvcc>2</hvcc><hv28>3</hv28><hvctayn>&#160;Y&#160;</hvctayn><hvmriayn>Y</hvmriayn><hvangioayn>Y</hvangioayn></item>
+      <item><hpid>X9000004</hpid><dutyName>가상 다온종합병원</dutyName><hvidate>NOW-24</hvidate><hvec>3</hvec><hvs01>12</hvs01><hvoc>1</hvoc><hvicc>1</hvicc><hvcc/><hv28/><hvctayn>Y</hvctayn><hvmriayn>N1</hvmriayn><hvangioayn>N1</hvangioayn></item>
+      <item><hpid>X9000005</hpid><dutyName>가상 강서심장센터</dutyName><hvidate>NOW-4</hvidate><hvec>2</hvec><hvs01>10</hvs01><hvoc>1</hvoc><hvicc>2</hvicc><hvcc>0</hvcc><hv28/><hvctayn>Y</hvctayn><hvmriayn>N1</hvmriayn><hvangioayn>Y</hvangioayn></item>
+      <item><hpid>X9000006</hpid><dutyName>가상 새빛의원</dutyName><hvidate>NOW-95</hvidate><hvec>1</hvec><hvs01>4</hvs01><hvoc/><hvicc/><hvcc/><hv28/><hvctayn>Y</hvctayn><hvmriayn>N1</hvmriayn><hvangioayn>N1</hvangioayn></item>
+    </items>
+    <numOfRows>100</numOfRows><pageNo>1</pageNo><totalCount>6</totalCount>
+  </body>
+</response>

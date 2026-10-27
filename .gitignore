@@ -4,3 +4,5 @@ __pycache__/
 .pytest_cache/
 .coverage
 docs/INTERVIEW_PREP*
+.streamlit/secrets.toml
+*.db

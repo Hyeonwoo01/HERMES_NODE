@@ -4,3 +4,7 @@ pandas==3.0.6
 numpy==2.5.4
 scipy==1.18.1
 plotly==7.1.0
+fhir.resources==8.3.0
+# LLM extractor (optional at runtime: used only when an API key is configured)
+anthropic==1.13.0
+openai==3.29.0

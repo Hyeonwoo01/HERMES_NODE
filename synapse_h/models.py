@@ -27,7 +27,7 @@ CAPABILITY_LABELS: dict[str, str] = {
 
 @dataclass
 class Hospital:
-    """A receiving node in the regional network (illustrative, not a real institution)."""
+    """A receiving node in the regional network (synthetic by default; see ``source``)."""
 
     id: str
     name: str
@@ -41,6 +41,9 @@ class Hospital:
     confirm_delay_min: float  # typical transfer-desk response time
     feed_age_min: float  # minutes since the public/hospital feed last updated
     notes: dict[str, str] = field(default_factory=dict)  # capability evidence text
+    source: str = "synthetic"  # where the values came from
+    updated_at: str = ""  # provider's own update time (ISO), when known
+    assumed: tuple[str, ...] = ()  # values filled with assumptions rather than data
 
     def has(self, caps: set[str] | frozenset[str]) -> bool:
         return set(caps).issubset(self.capabilities)
